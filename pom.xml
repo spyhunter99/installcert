@@ -222,50 +222,17 @@
                     <artifactId>maven-deploy-plugin</artifactId>
                     <version>2.8.2</version>
                 </plugin>
-                <plugin>
-                    <groupId>com.github.s4u.plugins</groupId>
-                    <artifactId>pgpverify-maven-plugin</artifactId>
-                    <version>1.0.0</version>
-                </plugin>
-                
-                <plugin>
+                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-pdf-plugin</artifactId>
-                    <version>1.3</version>
-
-                    <executions>
-                        <execution>
-                            <id>pdf-userguide</id>
-                            <phase>site</phase>
-                            <goals>
-                                <goal>pdf</goal>
-                            </goals>
-                            <configuration>
-                                <outputDirectory>${project.reporting.outputDirectory}</outputDirectory>
-                                <includeReports>true</includeReports>
-                                <docDescriptor>src/site/pdf-user.xml</docDescriptor>
-                            </configuration>
-                        </execution>
-                        <execution>
-                            <id>pdf-admin</id>
-                            <phase>site</phase>
-                            <goals>
-                                <goal>pdf</goal>
-                            </goals>
-                            <configuration>
-                                <outputDirectory>${project.reporting.outputDirectory}</outputDirectory>
-                                <includeReports>true</includeReports>
-                                <docDescriptor>src/site/pdf-admin.xml</docDescriptor>
-                            </configuration>
-                        </execution>
-                    </executions>
-                    <dependencies>
-                        <dependency>
-                            <groupId>org.apache.maven.doxia</groupId>
-                            <artifactId>doxia-module-markdown</artifactId>
-                            <version>1.6</version>
-                        </dependency>
-                    </dependencies>
+                    <artifactId>maven-release-plugin</artifactId>
+                    <version>2.5.3</version>
+                    <configuration>
+                        <autoVersionSubmodules>true</autoVersionSubmodules>
+                        <preparationGoals>clean install</preparationGoals>
+                        <goals>deploy</goals>
+                        <releaseProfiles>release</releaseProfiles>
+                        <tagNameFormat>installcert-@{project.version}</tagNameFormat>
+                    </configuration>
                 </plugin>
             </plugins>
 
@@ -429,6 +396,61 @@
           
         </plugins>
     </reporting>
+       
+    <profiles>
         
+        <!-- START SNIPPET: release-profile -->
+        <profile>
+            <id>release</id>
+
+
+            <build>
+                <plugins>
+                    
+                    
+                    <!-- We want to deploy the artifact to a staging location for perusal -->
+                    <plugin>
+                        <inherited>true</inherited>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-deploy-plugin</artifactId>
+                        <configuration>
+                            <updateReleaseInfo>true</updateReleaseInfo>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                   
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                    </plugin>
+                    <!-- We want to sign the artifact, the POM, and all attached artifacts -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>1.6</version>
+                        <executions>
+                            <execution>
+                                <id>sign-release-artifacts</id>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
         
 </project>
