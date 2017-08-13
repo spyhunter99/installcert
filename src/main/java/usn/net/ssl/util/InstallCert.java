@@ -44,12 +44,9 @@ import java.security.KeyStoreException;
 import java.security.MessageDigest;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashSet;
-import java.util.Locale;
 import java.util.Set;
-import java.util.Vector;
 
 import javax.naming.InvalidNameException;
 import javax.naming.ldap.LdapName;
@@ -356,7 +353,7 @@ public class InstallCert {
         CommandLine inputs = parser.parse(opts, args);
 
         if (!inputs.hasOption("host")) {
-            new HelpFormatter().printHelp("java -jar installcerts.jar", opts);
+            new HelpFormatter().printHelp("java -jar install-cert-<VERSION>-jar-with-dependencies.jar", opts);
             return;
         }
 

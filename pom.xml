@@ -1,30 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
- This Source Code Form is subject to the terms of the Mozilla Public
- License, v. 2.0. If a copy of the MPL was not distributed with this
- file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
- If it is not possible or desirable to put the notice in a particular
- file, then You may include the notice in a location (such as a LICENSE
- file in a relevant directory) where a recipient would be likely to look
- for such a notice.
-
- You may add additional accurate notices of copyright ownership.
-
-
- U.S. Government, Department of the Army
- Army Materiel Command
- Research Development Engineering Command
- Communications Electronics Research Development and Engineering Center
-
--->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <packaging>jar</packaging>
     <groupId>com.github.spyhunter99</groupId>
     <artifactId>install-cert</artifactId>
-    <version>1.0.1-SNAPSHOT</version>
+    <version>1.0.0-SNAPSHOT</version>
     <name>Install Cert</name>
     <description>A utility to add certs to the trust store from a connection attempt, originially written by Oracle</description>
     <url>https://mil-oss.github.io/</url>
@@ -100,6 +81,12 @@
             <name>Dmitry I. Platonoff</name>
             <email>n/a</email>
             <url>http://www.javaworld.com</url>
+        </developer>
+        
+          <developer>
+            <id>ao</id>
+            <name>Alex O'Ree</name>
+            <email>alexoree at apache.org</email>
         </developer>
 		
 		
