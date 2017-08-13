@@ -5,7 +5,7 @@
     <packaging>jar</packaging>
     <groupId>com.github.spyhunter99</groupId>
     <artifactId>install-cert</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1-SNAPSHOT</version>
     <name>Install Cert</name>
     <description>A utility to add certs to the trust store from a connection attempt, originially written by Oracle</description>
     <url>https://mil-oss.github.io/</url>
