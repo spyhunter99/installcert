@@ -1,6 +1,8 @@
 # installcert
 fork of http://s-n-ushakov.blogspot.com/2013/11/yet-another-installcert-for-java-now.html to use as a library
 
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.spyhunter99/install-cert/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.github.spyhunter99/install-cert)
+
 ## History
 
 Aug 2017 - My original use case was for building a Java installer and making things as painless as possible for the person doing the install.
