@@ -232,12 +232,10 @@ public class InstallCert {
         SSLSocket sslSocket = null;
         try {
             sslSocket = (SSLSocket) factory.createSocket(host, port);
-        } catch (java.net.ConnectException e) {
-            throw e;
-        }
-        sslSocket.setSoTimeout(10000);
-        System.out.println("... starting SSL handshake ...");
-        try {
+        
+            sslSocket.setSoTimeout(10000);
+            System.out.println("... starting SSL handshake ...");
+
             sslSocket.startHandshake();
             System.out.println("No errors, certificate is already trusted.");
         } // SMTP/STARTTLS and IMAP/STARTTLS servers seem tending to yield an

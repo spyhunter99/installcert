@@ -25,6 +25,7 @@ This will be published to maven central soon.
  - HTTPS and TLS
  - LDAPS
  - Most email based protocols using SSL/TLS, IMAP, SMTP, POP3
+ - Postgres with SSL
 
 ## Usage from the command line
 
@@ -79,6 +80,7 @@ so it must be as a super user account.
 	//if this set is not empty, then we found some untrusted certs and where able to connect successfully
 	//if it is empty, the connection was successful and no ssl/tls errors occured (already trusted)
 	//if an exception is thrown, it's usually a connection or firewall problem.
+	//note: this is a potentially long running operation
 	
 	//this is a great point to prompt the user to trust the certs or not
 	//TODO prompt the user for accept/reject the certs

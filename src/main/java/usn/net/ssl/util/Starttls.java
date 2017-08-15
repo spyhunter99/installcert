@@ -21,7 +21,8 @@ public class Starttls {
         LDAP(389),
         LDAPS(636),
         LDAPGC(3268),
-        LDAPGCS(3269);
+        LDAPGCS(3269),
+        POSTGRES(5432);
 
         /**
          * The standard port for a protocol
