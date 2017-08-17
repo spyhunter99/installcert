@@ -665,6 +665,11 @@ public class InstallCert {
     }  // getCommonName
 
     private void applyChanges(Set<X509Certificate> certsToSave, String host) throws Exception {
+        
+        System.out.println("Applying changes to " + this.keyStoreLocation.getAbsolutePath());
+        if (keyStoreLocation2!=null)
+            System.out.println("Applying changes to " + this.keyStoreLocation2.getAbsolutePath());
+        
         // assign aliases using host name and certificate common name
         for (X509Certificate cert : certsToSave) {
             String alias = host + " - " + getCommonName(cert);
