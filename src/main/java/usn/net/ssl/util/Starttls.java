@@ -1,6 +1,7 @@
 package usn.net.ssl.util;
 
 import java.io.IOException;
+import java.net.Socket;
 
 /**
  * A STARTTLS protocol extension wrapper class that makes an effort to decide on
@@ -56,7 +57,7 @@ public class Starttls {
 
     } // enum Protocol
 
-    /**
+     /**
      * Make an effort to guess the right application protocol for STARTTLS
      * extension, either by standard port or by interrogating the user; then
      * obtain the appropriate protocol handler and run it.
@@ -67,17 +68,17 @@ public class Starttls {
      * is believed to be successful, <code>false</code> otherwise
      * @throws IOException
      */
-    public static boolean consider(String host, int port)
+    public static boolean consider(String host, int port, Socket proxyTunnel)
             throws IOException, Exception {
         Starttls.Protocol protocolForPort = Protocol.getByPort(port);
         if (protocolForPort != null) {
-            return obtainProtocolHandlerAndRun(protocolForPort.name(), host, port);
+            return obtainProtocolHandlerAndRun(protocolForPort.name(), host, port, proxyTunnel);
         } else {
             //let's just try everything
             Protocol[] vals = Protocol.values();
             for (int i = 0; i < vals.length; i++) {
 
-                if (obtainProtocolHandlerAndRun(vals[i].name(), host, port)) {
+                if (obtainProtocolHandlerAndRun(vals[i].name(), host, port,proxyTunnel)) {
                     return true;
                 }
             }
@@ -95,7 +96,7 @@ public class Starttls {
      * @return <code>true</code> if getting a certificate via STARTTLS handler
      * is believed to be successful, <code>false</code> otherwise
      */
-    private static boolean obtainProtocolHandlerAndRun(String handlerSuffix, String host, int port) throws Exception {
+    private static boolean obtainProtocolHandlerAndRun(String handlerSuffix, String host, int port, Socket proxyTunnel) throws Exception {
         Class<StarttlsHandler> handlerClass = null;
         try {
             // avoid static linking to JavaMail library and other
@@ -138,7 +139,7 @@ public class Starttls {
             e.printStackTrace();
             return false;
         }
-        return handler.run(host, port);
+        return handler.run(host, port, proxyTunnel);
     } // obtainProtocolHandlerAndRun
 
 } // class Starttls

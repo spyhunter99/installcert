@@ -1,5 +1,7 @@
 package usn.net.ssl.util;
 
+import java.net.Socket;
+
 /**
  * An interface to be implemented by application protocol specific STARTTLS
  * handlers, to be used by {@link Starttls} class.
@@ -16,5 +18,5 @@ public interface StarttlsHandler {
      * believed to be successful, <code>false</code> otherwise
      * @throws java.lang.Exception
      */
-    boolean run(String host, int port) throws Exception;
+    boolean run(String host, int port, Socket tunnel) throws Exception;
 } // interface StarttlsHandler

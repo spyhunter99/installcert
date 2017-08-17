@@ -5,6 +5,7 @@
  */
 package usn.net.ssl.util;
 
+import java.net.Socket;
 import java.security.GeneralSecurityException;
 import java.sql.Connection;
 
@@ -27,7 +28,7 @@ public class StarttlsHandlerPOSTGRES implements StarttlsHandler {
     }
 
     @Override
-    public boolean run(String host, int port) throws Exception {
+    public boolean run(String host, int port,Socket tunnel) throws Exception {
 
         try {
             PGSimpleDataSource ds = new PGSimpleDataSource();

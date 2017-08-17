@@ -1,5 +1,6 @@
 package usn.net.ssl.util;
 
+import java.net.Socket;
 import java.security.Security;
 import java.util.Properties;
 
@@ -16,7 +17,7 @@ public class StarttlsHandlerPOP3
         implements StarttlsHandler {
 
     @Override
-    public boolean run(String host, int port) throws Exception // see http://javamail.kenai.com/nonav/javadocs/com/sun/mail/pop3/package-summary.html
+    public boolean run(String host, int port,Socket tunnel) throws Exception // see http://javamail.kenai.com/nonav/javadocs/com/sun/mail/pop3/package-summary.html
     // TODO verify this method against some real POP3/STARTTLS server
     {
         System.out.println("... trying POP3 with STARTTLS extension ...");

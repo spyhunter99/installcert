@@ -1,5 +1,6 @@
 package usn.net.ssl.util;
 
+import java.net.Socket;
 import java.security.Security;
 import java.util.Properties;
 
@@ -16,7 +17,7 @@ public class StarttlsHandlerSMTP
         implements StarttlsHandler {
 
     @Override
-    public boolean run(String host, int port) throws Exception // see http://javamail.kenai.com/nonav/javadocs/com/sun/mail/smtp/package-summary.html
+    public boolean run(String host, int port,Socket tunnel) throws Exception // see http://javamail.kenai.com/nonav/javadocs/com/sun/mail/smtp/package-summary.html
     {
         System.out.println("... trying SMTP with STARTTLS extension ...");
         Properties mailProps = new Properties();

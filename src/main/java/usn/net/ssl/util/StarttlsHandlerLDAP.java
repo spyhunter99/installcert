@@ -1,6 +1,7 @@
 package usn.net.ssl.util;
 
 import java.io.IOException;
+import java.net.Socket;
 import java.util.Hashtable;
 
 import javax.naming.Context;
@@ -11,7 +12,6 @@ import javax.naming.ldap.StartTlsRequest;
 import javax.naming.ldap.StartTlsResponse;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLHandshakeException;
-import javax.net.ssl.SSLSocketFactory;
 
 /**
  * A {@link StarttlsHandler} implementation for LDAP protocol.
@@ -30,7 +30,7 @@ public class StarttlsHandlerLDAP
     }
 
     @Override
-    public boolean run(String host, int port) throws Exception // see http://docs.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
+    public boolean run(String host, int port, Socket tunnel) throws Exception // see http://docs.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
     // see http://docs.oracle.com/javase/7/docs/technotes/guides/jndi/jndi-ldap.html
     {
         System.out.println("... trying LDAP with STARTTLS extension ...");

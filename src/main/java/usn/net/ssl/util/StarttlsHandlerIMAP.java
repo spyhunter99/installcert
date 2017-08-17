@@ -1,5 +1,6 @@
 package usn.net.ssl.util;
 
+import java.net.Socket;
 import java.security.Security;
 import java.util.Properties;
 
@@ -16,7 +17,7 @@ public class StarttlsHandlerIMAP
         implements StarttlsHandler {
 
     @Override
-    public boolean run(String host, int port) // see http://javamail.kenai.com/nonav/javadocs/com/sun/mail/imap/package-summary.html
+    public boolean run(String host, int port,Socket tunnel) // see http://javamail.kenai.com/nonav/javadocs/com/sun/mail/imap/package-summary.html
     {
         System.out.println("... trying IMAP with STARTTLS extension ...");
         Properties mailProps = new Properties();

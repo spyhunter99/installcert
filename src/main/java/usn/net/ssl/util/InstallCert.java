@@ -40,6 +40,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
+import java.net.Socket;
 import java.net.SocketException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -258,11 +260,40 @@ public class InstallCert {
         context.init(null, new TrustManager[]{tm}, null);
         SSLSocketFactory factory = context.getSocketFactory();
 
+        /*
+         * Set up a socket to do tunneling through the proxy.
+         * Start it off as a regular socket, then layer SSL
+         * over the top of it.
+         */
+        String tunnelHost = System.getProperty("https.proxyHost");
+        String tunnelPortStr = System.getProperty("https.proxyPort");
+        int tunnelPort = 0;
+        if ((tunnelPortStr != null) && (!tunnelPortStr.trim().isEmpty())) {
+            // Integer tunnelPortInteger = Integer.getInteger(tunnelPortStr);
+            // tunnelPort = (tunnelPortInteger != null) ? tunnelPortInteger.intValue() : 0;
+            tunnelPort = Integer.parseInt(tunnelPortStr);
+        }
+
+        Socket tunnel = null;
+        if ((tunnelHost != null) && (!tunnelHost.trim().isEmpty())) {
+            System.out.println("Opening socket to proxy " + tunnelHost + ":" + tunnelPort + "...");
+            tunnel = new Socket(tunnelHost, tunnelPort);
+            doTunnelHandshake(tunnel, host, port);
+        }
+
+        System.out.println("Opening connection to " + host + ":" + port + "...");
+
         System.out.println("... opening connection to " + host + ":" + port
                 + " ...");
         SSLSocket sslSocket = null;
         try {
-            sslSocket = (SSLSocket) factory.createSocket(host, port);
+
+            if (tunnel != null) {
+                System.out.println("Using proxy configuration. proxy: " + tunnelHost + ":" + tunnelPort);
+                sslSocket = (SSLSocket) factory.createSocket(tunnel, host, port, true);
+            } else {
+                sslSocket = (SSLSocket) factory.createSocket(host, port);
+            }
 
             sslSocket.setSoTimeout(10000);
             System.out.println("... starting SSL handshake ...");
@@ -288,7 +319,7 @@ public class InstallCert {
                 // close the unsuccessful SSL socket
                 sslSocket.close();
                 // consider trying STARTTLS extension over ordinary socket
-                if (!Starttls.consider(host, port)) {
+                if (!Starttls.consider(host, port, tunnel)) {
                     // Starttls.consider () is expected to have reported
                     // everything except the final good-bye...
                     e.printStackTrace();
@@ -302,7 +333,7 @@ public class InstallCert {
                         + e.toString());
                 sslSocket.close();
                 // consider trying STARTTLS extension over ordinary socket
-                if (!Starttls.consider(host, port)) {
+                if (!Starttls.consider(host, port, tunnel)) {
                     // Starttls.consider () is expected to have reported
                     // everything except the final good-bye...
                     e.printStackTrace();
@@ -316,7 +347,7 @@ public class InstallCert {
                         + e.toString());
                 sslSocket.close();
                 // consider trying STARTTLS extension over ordinary socket
-                if (!Starttls.consider(host, port)) {
+                if (!Starttls.consider(host, port, tunnel)) {
                     // Starttls.consider () is expected to have reported
                     // everything except the final good-bye...
                     e.printStackTrace();
@@ -381,6 +412,92 @@ public class InstallCert {
     }
 
     /**
+     * see https://github.com/escline/InstallCert/issues/9
+     * @author vpablos@github
+     * @param tunnel
+     * @param host
+     * @param port
+     * @throws IOException 
+     */
+    private void doTunnelHandshake(Socket tunnel, String host, int port)
+            throws IOException {
+        OutputStream out = tunnel.getOutputStream();
+        String msg = "CONNECT " + host + ":" + port + " HTTP/1.0\n"
+                + "User-Agent: "
+                + sun.net.www.protocol.http.HttpURLConnection.userAgent
+                + "\r\n\r\n";
+        byte b[];
+        try {
+            /*
+         * We really do want ASCII7 -- the http protocol doesn't change
+         * with locale.
+             */
+            b = msg.getBytes("ASCII7");
+        } catch (UnsupportedEncodingException ignored) {
+            /*
+         * If ASCII7 isn't there, something serious is wrong, but
+         * Paranoia Is Good (tm)
+             */
+            b = msg.getBytes();
+        }
+        out.write(b);
+        out.flush();
+
+        /*
+      * We need to store the reply so we can create a detailed
+      * error message to the user.
+         */
+        byte reply[] = new byte[200];
+        int replyLen = 0;
+        int newlinesSeen = 0;
+        boolean headerDone = false;
+        /* Done on first newline */
+
+        InputStream in = tunnel.getInputStream();
+        boolean error = false;
+
+        while (newlinesSeen < 2) {
+            int i = in.read();
+            if (i < 0) {
+                throw new IOException("Unexpected EOF from proxy");
+            }
+            if (i == '\n') {
+                headerDone = true;
+                ++newlinesSeen;
+            } else if (i != '\r') {
+                newlinesSeen = 0;
+                if (!headerDone && replyLen < reply.length) {
+                    reply[replyLen++] = (byte) i;
+                }
+            }
+        }
+
+        /*
+      * Converting the byte array to a string is slightly wasteful
+      * in the case where the connection was successful, but it's
+      * insignificant compared to the network overhead.
+         */
+        String replyStr;
+        try {
+            replyStr = new String(reply, 0, replyLen, "ASCII7");
+        } catch (UnsupportedEncodingException ignored) {
+            replyStr = new String(reply, 0, replyLen);
+        }
+
+        /* We check for Connection Established because our proxy returns 
+       * HTTP/1.1 instead of 1.0 */
+        //if (!replyStr.startsWith("HTTP/1.0 200")) {
+        if (replyStr.toLowerCase().indexOf(
+                "200 connection established") == -1) {
+            throw new IOException("Unable to tunnel through "
+                    + host + ":" + port
+                    + ".  Proxy returns \"" + replyStr + "\"");
+        }
+
+        /* tunneling Handshake was successful! */
+    }
+
+    /**
      * Run the program from command line.
      *
      * @param args command line arguments as: <code>{@literal <host>[:<port>]
@@ -398,7 +515,7 @@ public class InstallCert {
         opts.addOption("passwordExtra", true, "if specified, password for the extra trust store");
         opts.addOption("noimport", false, "if specified, no changes will be made to trust stores");
         opts.addOption("file", false, "if specified, untrusted certificates will be stored to individial .crt files");
-       
+
         CommandLineParser parser = new DefaultParser();
         CommandLine inputs = parser.parse(opts, args);
 
