@@ -329,6 +329,25 @@ public class InstallCert {
         }
         return certsToSave;
     }
+    
+    /**
+     * clears all settings and nullifies are cached passwords.
+     * This should be called when this object is no longer needed
+     */
+    public void close(){
+        if (this.keyStorePassword!=null) {
+            clearPassword(keyStorePassword);
+        }
+        if (this.keyStorePassword2!=null) {
+            clearPassword(keyStorePassword2);
+        }
+        this.keyStorePassword=null;
+        this.keyStorePassword2=null;
+        this.store=null;
+        this.store2=null;
+        this.keyStoreLocation=null;
+        this.keyStoreLocation2=null;
+    }
 
     /**
      * Run the program from command line.
@@ -435,6 +454,14 @@ public class InstallCert {
             System.out.println("No new certificates found to be added.");
         }
     } // main
+    
+    
+    private static void clearPassword(char[] pwd) {
+        if (pwd==null) return;
+        for (int i=0; i < pwd.length; i++) {
+            pwd[i] = '\0';
+        }
+    }
 
     protected static String joinStringArray(String[] array, String delimiter) {
         StringBuilder sb = new StringBuilder();
@@ -507,6 +534,7 @@ public class InstallCert {
             out.close();
         }
     }
+
 
     // -- class SavingTrustManager ---------------------------------------------
     /**
