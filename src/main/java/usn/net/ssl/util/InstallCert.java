@@ -34,14 +34,17 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.StringWriter;
 import java.net.SocketException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.MessageDigest;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
@@ -59,6 +62,7 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
+import javax.xml.bind.DatatypeConverter;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -67,6 +71,7 @@ import org.apache.commons.cli.Options;
 
 import sun.security.provider.certpath.SunCertPathBuilderException;
 import sun.security.validator.ValidatorException;
+import static usn.net.ssl.util.InstallCert.certToString;
 
 /**
  * <p>
@@ -145,6 +150,32 @@ public class InstallCert {
     //this is also the only variable that prevents this class from being thread safe.
     // this one is needed here to allow being shared with embedded classes
     private static SSLContext context;
+
+    private static void saveCerts(Set<X509Certificate> certsToSave, String host) throws Exception {
+        for (X509Certificate cert : certsToSave) {
+            String alias = host + " - " + getCommonName(cert);
+            File file = null;
+            file = new File(alias + ".crt");
+            int i = 0;
+            while (file.exists()) {
+                file = new File(alias + "-" + i + ".crt");
+            }
+            FileWriter fw = new FileWriter(file);
+            fw.write(certToString(cert));
+            fw.close();
+            System.out.println("Cert saved to: " + file.getAbsolutePath());
+        }
+    }
+
+    public static String certToString(X509Certificate cert) throws CertificateEncodingException {
+        StringWriter sw = new StringWriter();
+
+        sw.write("-----BEGIN CERTIFICATE-----\n");
+        sw.write(DatatypeConverter.printBase64Binary(cert.getEncoded()).replaceAll("(.{64})", "$1\n"));
+        sw.write("\n-----END CERTIFICATE-----\n");
+
+        return sw.toString();
+    }
 
     private KeyStore store;
     private File keyStoreLocation;
@@ -232,7 +263,7 @@ public class InstallCert {
         SSLSocket sslSocket = null;
         try {
             sslSocket = (SSLSocket) factory.createSocket(host, port);
-        
+
             sslSocket.setSoTimeout(10000);
             System.out.println("... starting SSL handshake ...");
 
@@ -329,24 +360,24 @@ public class InstallCert {
         }
         return certsToSave;
     }
-    
+
     /**
-     * clears all settings and nullifies are cached passwords.
-     * This should be called when this object is no longer needed
+     * clears all settings and nullifies are cached passwords. This should be
+     * called when this object is no longer needed
      */
-    public void close(){
-        if (this.keyStorePassword!=null) {
+    public void close() {
+        if (this.keyStorePassword != null) {
             clearPassword(keyStorePassword);
         }
-        if (this.keyStorePassword2!=null) {
+        if (this.keyStorePassword2 != null) {
             clearPassword(keyStorePassword2);
         }
-        this.keyStorePassword=null;
-        this.keyStorePassword2=null;
-        this.store=null;
-        this.store2=null;
-        this.keyStoreLocation=null;
-        this.keyStoreLocation2=null;
+        this.keyStorePassword = null;
+        this.keyStorePassword2 = null;
+        this.store = null;
+        this.store2 = null;
+        this.keyStoreLocation = null;
+        this.keyStoreLocation2 = null;
     }
 
     /**
@@ -365,7 +396,9 @@ public class InstallCert {
         opts.addOption("truststoreExtra", true, "if specified, this trust store will also be used");
         opts.addOption("password", true, "if specified, your value will be used for the trust store password. if not specified the default jre password will be used");
         opts.addOption("passwordExtra", true, "if specified, password for the extra trust store");
-
+        opts.addOption("noimport", false, "if specified, no changes will be made to trust stores");
+        opts.addOption("file", false, "if specified, untrusted certificates will be stored to individial .crt files");
+       
         CommandLineParser parser = new DefaultParser();
         CommandLine inputs = parser.parse(opts, args);
 
@@ -442,23 +475,31 @@ public class InstallCert {
                 }
 
             }
-        } 
+        }
 
         // save the new certificates approved by the user
         if (!certsToSave.isEmpty()) {
 
-            ref.applyChanges(certsToSave, host);
+            if (inputs.hasOption("file")) {
+                saveCerts(certsToSave, host);
+            }
+            if (inputs.hasOption("noimport")) {
+                System.out.println("Skipping JKS import due to -noimport flag");
+            } else {
+                ref.applyChanges(certsToSave, host);
+            }
 
         } else {
             System.out.println();
             System.out.println("No new certificates found to be added.");
         }
     } // main
-    
-    
+
     private static void clearPassword(char[] pwd) {
-        if (pwd==null) return;
-        for (int i=0; i < pwd.length; i++) {
+        if (pwd == null) {
+            return;
+        }
+        for (int i = 0; i < pwd.length; i++) {
             pwd[i] = '\0';
         }
     }
@@ -534,7 +575,6 @@ public class InstallCert {
             out.close();
         }
     }
-
 
     // -- class SavingTrustManager ---------------------------------------------
     /**

@@ -36,9 +36,13 @@ This tool can be ran from the command line just like the original version
 This will display help and usage information.
 
 ````
-	usage: java -jar i install-cert-<VERSION>-jar-with-dependencies.jar
+	usage: java -jar install-cert-<VERSION>-jar-with-dependencies.jar
+	 -file                    if specified, untrusted certificates will be
+							  stored to individial .crt files
 	 -host <arg>              The host:port of the server to pull a ssl cert
 							  chain from. If not specified, 443 will be used.
+	 -noimport                if specified, no changes will be made to trust
+							  stores
 	 -password <arg>          if specified, your value will be used for the
 							  trust store password. if not specified the
 							  default jre password will be used
@@ -48,12 +52,34 @@ This will display help and usage information.
 	 -truststoreExtra <arg>   if specified, this trust store will also be used
 ````
 
+### Examples (command line again)
+
+Import to Java JRE/JDK trust store (probably needs to be ran as root/elevated
+
+	`> java -jar install-cert-<VERSION>-jar-with-dependencies.jar -host server:port`
+	
+Get the certs and store to a file but don't modify any files trust stores
+
+	`> java -jar install-cert-<VERSION>-jar-with-dependencies.jar -host server:port -noimport -file`
+	
+Imports the certs to a specified trust store
+
+	`> java -jar install-cert-<VERSION>-jar-with-dependencies.jar -host server:port -truststore path/to/trust.jks -password mysecret
+	
+Import the certs to a primary and secondary store at the same time
+
+	`> java -jar install-cert-<VERSION>-jar-with-dependencies.jar -host server:port -truststore path/to/trust.jks -password mysecret  -truststoreExtra path/to/trust2.jks -passwordExtra mysecret
+	
+Import the certs to the JRE/JDK trust store and a secondary trust store
+
+	`> java -jar install-cert-<VERSION>-jar-with-dependencies.jar -host server:port -truststoreExtra path/to/trust2.jks -passwordExtra mysecret
+
 
 Windows users: If the `-truststore` option is not given, then this application will modify the current Java install's trusted root certificate store. This is not normally writable
 so it must be ran with an elevated command prompt/power shell/etc. This is usually done via Start > just type `cmd` then right click `Command Prompt`, then `Run as Administrator`
 
 Mac/Linux users: : If the `-truststore` option is not given, then this application will modify the current Java install's trusted root certificate store. This is not normally writable
-so it must be as a super user account.
+so it must be as a super user account via su or sudo
 
 
 ## Using this embedded in your application
@@ -87,6 +113,9 @@ so it must be as a super user account.
 	
 	//apply the changes with your user selected certs
 	installer.applyChanges(untrustedCerts, host);
+	
+	//close out the installer, this releases all file handles and clears any specified passwords to the NUL character.
+	installer.close();
 ```
 
 
