@@ -90,7 +90,7 @@ so it must be as a super user account via su or sudo
 	<dependency>
 		<groupId>com.github.spyhunter99</groupId>
 		<artifactId>install-cert</artifactId>
-		<version>1.0.2</version>
+		<version>1.0.3</version>
 	</dependency>
 ```
 
