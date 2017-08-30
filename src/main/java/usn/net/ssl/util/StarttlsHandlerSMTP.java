@@ -17,7 +17,7 @@ public class StarttlsHandlerSMTP
         implements StarttlsHandler {
 
     @Override
-    public boolean run(String host, int port,Socket tunnel) throws Exception // see http://javamail.kenai.com/nonav/javadocs/com/sun/mail/smtp/package-summary.html
+    public boolean run(String host, int port, Socket tunnel) throws Exception // see http://javamail.kenai.com/nonav/javadocs/com/sun/mail/smtp/package-summary.html
     {
         System.out.println("... trying SMTP with STARTTLS extension ...");
         Properties mailProps = new Properties();
@@ -26,6 +26,14 @@ public class StarttlsHandlerSMTP
                 "javax.net.ssl.SSLSocketFactory");
         mailProps.put("mail.smtp.socketFactory.fallback", "false");
         mailProps.put("mail.smtp.starttls.enable", "true");
+        mailProps.put("mail.smtp.timeout", "3000");
+        mailProps.put("mail.smtp.connectiontimeout", "3000");
+        mailProps.put("mail.smtp.timeout", "3000");
+        mailProps.put("mail.pop3.timeout", "3000");
+        mailProps.put("mail.pop3.connectiontimeout", "3000");
+        mailProps.put("mail.imap.timeout", "3000");
+        mailProps.put("mail.imap.connectiontimeout", "3000");
+        mailProps.put("mail.imap.connectionpooltimeout", "3000");
 
         Security.setProperty("ssl.SocketFactory.provider",
                 SavingSSLSocketFactory.class.getName());
@@ -36,6 +44,7 @@ public class StarttlsHandlerSMTP
             tr = mailSession.getTransport();
         } catch (NoSuchProviderException e) {
             e.printStackTrace();
+            System.out.println("... trying SMTP with stopped...");
             return false;
         }
         try {
@@ -46,9 +55,11 @@ public class StarttlsHandlerSMTP
                 // return success
                 System.out.println("ERROR on SSL handshake: "
                         + e.toString());
+                System.out.println("... trying SMTP with stopped...");
                 return true;
             } else {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
+                System.out.println("... trying SMTP with stopped...");
                 return false;
             }
         } finally {
@@ -59,7 +70,9 @@ public class StarttlsHandlerSMTP
                     // nothing to do here...
                 }
             }
+
         }
+        System.out.println("... trying SMTP with stopped...");
         return false;
     } // run
 } // class StarttlsHandlerSMTP

@@ -42,7 +42,7 @@ public class StarttlsHandlerPOSTGRES implements StarttlsHandler {
             c.close();
             return true;
         } catch (Exception ex) {
-            ex.printStackTrace();
+            System.out.println(ex.getMessage());
         }
         return false;
     }

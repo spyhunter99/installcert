@@ -14,19 +14,51 @@ import javax.mail.Store;
  * A {@link StarttlsHandler} implementation for IMAP protocol.
  */
 public class StarttlsHandlerIMAP
-        implements StarttlsHandler {
+        implements StarttlsHandler, Runnable {
 
     @Override
-    public boolean run(String host, int port,Socket tunnel) // see http://javamail.kenai.com/nonav/javadocs/com/sun/mail/imap/package-summary.html
+    public boolean run(String host, int port, Socket tunnel) throws Exception // see http://javamail.kenai.com/nonav/javadocs/com/sun/mail/imap/package-summary.html
     {
+        this.host = host;
+        this.port = port;
+
+        final int timeout = 5000;
+        Thread t = new Thread(this);
+        t.start();
+
+        Thread.sleep(timeout);
+        t.interrupt();
+        try {
+            t.suspend();
+        } catch (Throwable ex) {
+            ex.printStackTrace();
+        }
+        try {
+            t.stop();
+        } catch (Throwable ex) {
+            ex.printStackTrace();
+        }
+
+        return returnValue;
+
+    } // run
+    boolean returnValue = false;
+    String host = "";
+    int port = 0;
+
+    @Override
+    public void run() {
         System.out.println("... trying IMAP with STARTTLS extension ...");
         Properties mailProps = new Properties();
         mailProps.put("mail.store.protocol", "imap");
         mailProps.put("mail.imap.socketFactory.class",
                 "javax.net.ssl.SSLSocketFactory");
+        mailProps.put("mail.imap.connectionpooltimeout", "3000");
+        mailProps.put("mail.imap.connectiontimeout", "3000");
+        mailProps.put("mail.imap.timeout", "3000");
         mailProps.put("mail.imap.socketFactory.fallback", "false");
         mailProps.put("mail.imap.starttls.enable", "true");
-
+        mailProps.put("mail.imaps.timeout", "3000");
         Security.setProperty("ssl.SocketFactory.provider",
                 SavingSSLSocketFactory.class.getName());
 
@@ -35,8 +67,8 @@ public class StarttlsHandlerIMAP
         try {
             store = mailSession.getStore("imap");
         } catch (NoSuchProviderException e) {
-            e.printStackTrace();
-            return false;
+            System.out.println(e.getMessage());
+            returnValue = false;
         }
         try {
             store.connect(host, port, "", "");
@@ -45,10 +77,10 @@ public class StarttlsHandlerIMAP
             // success
             System.out.println("ERROR on IMAP authentication: "
                     + e.toString());
-            return true;
+            returnValue = true;
         } catch (MessagingException e) {
-            e.printStackTrace();
-            return false;
+            System.out.println(e.getMessage());
+            returnValue = false;
         } finally {
             if (store.isConnected()) {
                 try {
@@ -57,7 +89,8 @@ public class StarttlsHandlerIMAP
                     // nothing to do here...
                 }
             }
+           
         }
-        return false;
-    } // run
+         System.out.println("... trying IMAP with stopped...");
+    }
 } // class StarttlsHandlerIMAP

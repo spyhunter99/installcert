@@ -227,8 +227,9 @@ public class InstallCert {
 
     private static Collection<? extends KeyStoreWrapper> scanJavaInstall(File file) {
         Set<KeyStoreWrapper> wrappers = new HashSet<KeyStoreWrapper>();
-        if (file==null || !file.exists())
+        if (file == null || !file.exists()) {
             return wrappers;
+        }
         File cacerts = new File(file, "lib/security/cacerts");
         if (cacerts.exists()) {
             KeyStoreWrapper wrapper = new KeyStoreWrapper();
@@ -469,12 +470,14 @@ public class InstallCert {
             } else if (e.getCause().getClass().getName().equals("java.io.EOFException")) // "Remote host closed connection during handshake"
             {
                 // close the unsuccessful SSL socket
-                sslSocket.close();
+                if (sslSocket != null) {
+                    sslSocket.close();
+                }
                 // consider trying STARTTLS extension over ordinary socket
                 if (!Starttls.consider(host, port, tunnel)) {
                     // Starttls.consider () is expected to have reported
                     // everything except the final good-bye...
-                    e.printStackTrace();
+                    System.out.println(e.getMessage());
                 }
             } else {
                 e.printStackTrace();
@@ -483,32 +486,37 @@ public class InstallCert {
             if (e.getMessage().equals("Unrecognized SSL message, plaintext connection?")) {
                 System.out.println("ERROR on SSL handshake: "
                         + e.toString());
-                sslSocket.close();
+                if (sslSocket != null) {
+                    sslSocket.close();
+                }
                 // consider trying STARTTLS extension over ordinary socket
                 if (!Starttls.consider(host, port, tunnel)) {
                     // Starttls.consider () is expected to have reported
                     // everything except the final good-bye...
-                    e.printStackTrace();
+                    System.out.println(e.getMessage());
                 }
             } else {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         } catch (SocketException e) {
             if (e.getMessage().equals("Connection reset")) {
                 System.out.println("ERROR on SSL handshake: "
                         + e.toString());
-                sslSocket.close();
+                if (sslSocket != null) {
+                    sslSocket.close();
+                }
                 // consider trying STARTTLS extension over ordinary socket
                 if (!Starttls.consider(host, port, tunnel)) {
                     // Starttls.consider () is expected to have reported
                     // everything except the final good-bye...
-                    e.printStackTrace();
+                    System.out.println(e.getMessage());
                 }
             } else {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         } finally {
-            if (!sslSocket.isClosed()) {
+
+            if (sslSocket != null && !sslSocket.isClosed()) {
                 sslSocket.close();
             }
         }
@@ -752,14 +760,6 @@ public class InstallCert {
         }
     } // main
 
-    private static void clearPassword(char[] pwd) {
-        if (pwd == null) {
-            return;
-        }
-        for (int i = 0; i < pwd.length; i++) {
-            pwd[i] = '\0';
-        }
-    }
 
     public String prettyPrintCertificate(X509Certificate cert, String newLine) throws InvalidNameException, CertificateEncodingException {
         StringBuilder sb = new StringBuilder();

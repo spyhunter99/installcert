@@ -132,11 +132,11 @@ public class Starttls {
             handler = handlerClass.newInstance();
         } catch (InstantiationException e) {
             // should not happen...
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             return false;
         } catch (IllegalAccessException e) {
             // should not happen...
-            e.printStackTrace();
+            System.out.println(e.getMessage());
             return false;
         }
         return handler.run(host, port, proxyTunnel);
