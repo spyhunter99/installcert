@@ -166,6 +166,7 @@ public class InstallCert {
     private static void saveCerts(Set<X509Certificate> certsToSave, String host) throws Exception {
         for (X509Certificate cert : certsToSave) {
             String alias = host + " - " + getCommonName(cert);
+            alias = alias.replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
             File file = null;
             file = new File(alias + ".crt");
             int i = 0;
@@ -678,6 +679,7 @@ public class InstallCert {
         opts.addOption("passwordExtra", true, "if specified, password for the extra trust store");
         opts.addOption("noimport", false, "if specified, no changes will be made to trust stores");
         opts.addOption("file", false, "if specified, untrusted certificates will be stored to individial .crt files");
+        opts.addOption("danger", false, "don't prompt for confirmation, all certificates returned will be auto trusted");
 
         CommandLineParser parser = new DefaultParser();
         CommandLine inputs = parser.parse(opts, args);
@@ -733,10 +735,14 @@ public class InstallCert {
                 System.out.println();
                 System.out.println(ref.prettyPrintCertificate(cert, "\n"));
 
+                if (inputs.hasOption("danger")) {
+                    certsToSave.add(cert);
+                } else {
                 System.out.print("Do you want to trust this certifcate (y/n)? > ");
                 String answer = System.console().readLine();
                 if ("y".equalsIgnoreCase(answer)) {
                     certsToSave.add(cert);
+                }
                 }
 
             }
@@ -759,7 +765,6 @@ public class InstallCert {
             System.out.println("No new certificates found to be added.");
         }
     } // main
-
 
     public String prettyPrintCertificate(X509Certificate cert, String newLine) throws InvalidNameException, CertificateEncodingException {
         StringBuilder sb = new StringBuilder();
