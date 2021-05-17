@@ -258,90 +258,8 @@ public class InstallCert {
         return wrappers;
     }
 
-    public List<File> getTrustStores() {
-        List<File> files = new ArrayList<File>();
-        for (KeyStoreWrapper wrapper : trustStoresToModify) {
-            files.add(wrapper.keyStoreLocation);
-        }
-        return files;
-    }
-
-    public static class KeyStoreWrapper {
-
-        private KeyStore store;
-        private File keyStoreLocation;
-        private char[] keyStorePassword;
-
-        public KeyStore getStore() {
-            return store;
-        }
-
-        public void setStore(KeyStore store) {
-            this.store = store;
-        }
-
-        public File getKeyStoreLocation() {
-            return keyStoreLocation;
-        }
-
-        public void setKeyStoreLocation(File keyStoreLocation) {
-            this.keyStoreLocation = keyStoreLocation;
-        }
-
-        public char[] getKeyStorePassword() {
-            return keyStorePassword;
-        }
-
-        public void setKeyStorePassword(char[] keyStorePassword) {
-            this.keyStorePassword = keyStorePassword;
-        }
-
-        @Override
-        public boolean equals(Object other) {
-            if (other instanceof KeyStoreWrapper) {
-                return keyStoreLocation.equals(((KeyStoreWrapper) other).keyStoreLocation);
-            }
-            return false;
-        }
-
-        @Override
-        public int hashCode() {
-            int hash = 7;
-            hash = 41 * hash + (this.keyStoreLocation != null ? this.keyStoreLocation.hashCode() : 0);
-            return hash;
-        }
-    }
-    private MessageDigest sha1 = null;
-    private MessageDigest md5 = null;
-    private Set<KeyStoreWrapper> trustStoresToModify = new HashSet<KeyStoreWrapper>();
-
     public static SSLContext getContext() {
         return context;
-    }
-
-    public InstallCert() {
-        try {
-            sha1 = MessageDigest.getInstance("SHA1");
-        } catch (NoSuchAlgorithmException ex) {
-            Logger.getLogger(InstallCert.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        try {
-            md5 = MessageDigest.getInstance("MD5");
-        } catch (NoSuchAlgorithmException ex) {
-            Logger.getLogger(InstallCert.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-
-    public void addTrustStore(File file, char[] password) throws Exception {
-        KeyStoreWrapper wrapper = new KeyStoreWrapper();
-        wrapper.keyStoreLocation = file;
-        wrapper.keyStorePassword = password;
-        wrapper.store = getKeyStore(file, password);
-        trustStoresToModify.add(wrapper);
-    }
-
-    public void addAll(Set<KeyStoreWrapper> set) {
-        this.trustStoresToModify.addAll(set);
     }
 
     public static Set<KeyStoreWrapper> findTrustStores() {
@@ -378,6 +296,214 @@ public class InstallCert {
     }
 
     /**
+     * Run the program from command line.
+     *
+     * @param args command line arguments as: <code>{@literal <host>[:<port>]
+     *             [<truststore_password>]}</code>
+     * @throws Exception
+     */
+    public static void main(final String[] args)
+            throws Exception {
+
+        Options opts = new Options();
+        opts.addOption("host", true, "The host:port of the server to pull a ssl cert chain from. If not specified, 443 will be used.");
+        opts.addOption("truststore", true, "if specified, this trust store will be used, otherwise JAVA_HOME/cacerts will be used");
+        opts.addOption("truststoreExtra", true, "if specified, this trust store will also be used");
+        opts.addOption("password", true, "if specified, your value will be used for the trust store password. if not specified the default jre password will be used");
+        opts.addOption("passwordExtra", true, "if specified, password for the extra trust store");
+        opts.addOption("noimport", false, "if specified, no changes will be made to trust stores");
+        opts.addOption("file", false, "if specified, untrusted certificates will be stored to individial .crt files");
+        opts.addOption("danger", false, "don't prompt for confirmation, all certificates returned will be auto trusted");
+        opts.addOption("skipDisco", false, "skip automatic JRE trust store detection");
+        /*
+        * useful for when the current JRE trust's something, but the target JRE that needs to be
+        * updated does not
+         */
+        opts.addOption("exclude", false, "Exclues trustworthiness from all trust stores");
+
+        CommandLineParser parser = new DefaultParser();
+        CommandLine inputs = parser.parse(opts, args);
+
+        if (!inputs.hasOption("host")) {
+            new HelpFormatter().printHelp("java -jar install-cert-<VERSION>-jar-with-dependencies.jar", opts);
+            return;
+        }
+
+        InstallCert ref = new InstallCert();
+
+        // handle command line arguments
+        String host = null;
+        int port = 0;
+
+        char[] password = null;
+
+        char[] pwd2 = null;
+        File storeLocation2 = null;
+
+        // handle standard arguments
+        String[] c = inputs.getOptionValue("host").split(":");
+        host = c[0];
+        port = (c.length < 2) ? 443 : Integer.parseInt(c[1]);
+        if (inputs.hasOption("password")) {
+            password = inputs.getOptionValue("password").toCharArray();
+        } else {
+            password = DEFAULT;
+        }
+        if (inputs.hasOption("passwordExtra")) {
+            pwd2 = inputs.getOptionValue("passwordExtra").toCharArray();
+        } else {
+            pwd2 = DEFAULT;
+        }
+
+        //option for no trust store discovery
+        if (!inputs.hasOption("skipDisco")) {
+            ref.trustStoresToModify.addAll(findTrustStores());
+        }
+
+        if (inputs.hasOption("truststore")) {
+            ref.addTrustStore(new File(inputs.getOptionValue("truststore")), password);
+        }
+
+        if (inputs.hasOption("truststoreExtra")) {
+            storeLocation2 = new File(inputs.getOptionValue("truststoreExtra"));
+            ref.addTrustStore(storeLocation2, pwd2);
+        }
+
+        if (inputs.hasOption("exclude")) {
+            ref.setExcludeAllTrustStates(true);
+        }
+
+        Set<X509Certificate> untrustedCerts = ref.getCerts(host, port);
+        Set<X509Certificate> certsToSave = new HashSet<X509Certificate>();
+
+        // save the new certificates approved by the user
+        if (!untrustedCerts.isEmpty()) {
+            // assign aliases using host name and certificate common name
+            for (X509Certificate cert : untrustedCerts) {
+                System.out.println();
+                System.out.println(ref.prettyPrintCertificate(cert, "\n"));
+
+                if (inputs.hasOption("danger")) {
+                    certsToSave.add(cert);
+                } else {
+                    System.out.print("Do you want to trust this certifcate (y/n)? > ");
+                    String answer = System.console().readLine();
+                    if ("y".equalsIgnoreCase(answer)) {
+                        certsToSave.add(cert);
+                    }
+                }
+
+            }
+        }
+
+        // save the new certificates approved by the user
+        if (!certsToSave.isEmpty()) {
+
+            if (inputs.hasOption("file")) {
+                saveCerts(certsToSave, host);
+            }
+            if (inputs.hasOption("noimport")) {
+                System.out.println("Skipping JKS import due to -noimport flag");
+            } else {
+                ref.applyChanges(certsToSave, host);
+            }
+
+        } else {
+            System.out.println();
+            System.out.println("No new certificates found to be added.");
+        }
+    } // main
+
+    protected static String joinStringArray(String[] array, String delimiter) {
+        StringBuilder sb = new StringBuilder();
+        for (String s : array) {
+            if (sb.length() > 0) {
+                sb.append(delimiter);
+            }
+            sb.append(s);
+        }
+        return sb.toString();
+    } // joinStringArray
+
+    protected static String toHexString(byte[] bytes) {
+        StringBuilder sb = new StringBuilder(bytes.length * 3);
+        for (int b : bytes) {
+            sb.append(String.format("%02x ", b & 0xff));
+        }
+        return sb.toString();
+    } // toHexString
+
+    protected static String ask(String prompt)
+            throws IOException {
+        System.out.print(prompt);
+        BufferedReader stdinReader
+                = new BufferedReader(new InputStreamReader(System.in));
+        String line = stdinReader.readLine().trim();
+        return line;
+    } // ask
+
+    public static String getCommonName(X509Certificate cert)
+            throws InvalidNameException {
+        // use LDAP API to parse the certifiate Subject :)
+        // see http://stackoverflow.com/a/7634755/972463
+        LdapName ldapDN
+                = new LdapName(cert.getSubjectX500Principal().getName());
+        String cn = "";
+        for (Rdn rdn : ldapDN.getRdns()) {
+            if (rdn.getType().equals("CN")) {
+                cn = rdn.getValue().toString();
+            }
+        }
+        return cn;
+    }  // getCommonName
+    private boolean excludeAllTrustStates = false;
+
+    private MessageDigest sha1 = null;
+    private MessageDigest md5 = null;
+    private Set<KeyStoreWrapper> trustStoresToModify = new HashSet<KeyStoreWrapper>();
+
+    public InstallCert() {
+        try {
+            sha1 = MessageDigest.getInstance("SHA1");
+        } catch (NoSuchAlgorithmException ex) {
+            Logger.getLogger(InstallCert.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        try {
+            md5 = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException ex) {
+            Logger.getLogger(InstallCert.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+
+    public List<File> getTrustStores() {
+        List<File> files = new ArrayList<File>();
+        for (KeyStoreWrapper wrapper : trustStoresToModify) {
+            files.add(wrapper.keyStoreLocation);
+        }
+        return files;
+    }
+
+    public boolean isExcludeAllTrustStates() {
+        return excludeAllTrustStates;
+    }
+
+    public void setExcludeAllTrustStates(boolean excludeAllTrustStates) {
+        this.excludeAllTrustStates = excludeAllTrustStates;
+    }
+
+    public void addTrustStore(File file, char[] password) throws Exception {
+        KeyStoreWrapper wrapper = new KeyStoreWrapper();
+        wrapper.keyStoreLocation = file;
+        wrapper.keyStorePassword = password;
+        wrapper.store = getKeyStore(file, password);
+        trustStoresToModify.add(wrapper);
+    }
+
+    public void addAll(Set<KeyStoreWrapper> set) {
+        this.trustStoresToModify.addAll(set);
+    }
+
+    /**
      * returns a potentially empty list of certificates that are not trusted
      *
      * @param host
@@ -386,16 +512,20 @@ public class InstallCert {
      */
     public synchronized Set<X509Certificate> getCerts(String host, int port) throws Exception {
 
-        if (trustStoresToModify.isEmpty()) {
-            throw new Exception("must initialize the trust store(s) first");
-        }
+        //if (trustStoresToModify.isEmpty()) {
+        //    throw new Exception("must initialize the trust store(s) first");
+        //}
         // obtain an instance of a TLS SSLContext
         context = SSLContext.getInstance("TLS");
 
         // obtain a TrustManagerFactory instance
         TrustManagerFactory tmf
                 = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-
+        try {
+            tmf.init((KeyStore)null);
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "failed to null trust store ", ex);
+        }
         // initialize it with known certificate data
         for (KeyStoreWrapper wrapper : trustStoresToModify) {
             try {
@@ -408,7 +538,24 @@ public class InstallCert {
         // obtain default TrustManager instance
         X509TrustManager defaultTrustManager
                 = (X509TrustManager) tmf.getTrustManagers()[0];
+        if (excludeAllTrustStates) {
+            defaultTrustManager = new X509TrustManager() {
+                @Override
+                public void checkClientTrusted(X509Certificate[] xcs, String string) throws CertificateException {
+                    throw new CertificateException(string);
+                }
 
+                @Override
+                public void checkServerTrusted(X509Certificate[] xcs, String string) throws CertificateException {
+                    throw new CertificateException(string);
+                }
+
+                @Override
+                public X509Certificate[] getAcceptedIssuers() {
+                    return new X509Certificate[0];
+                }
+            };
+        }
         SavingTrustManager tm
                 = new SavingTrustManager(defaultTrustManager, trustStoresToModify);
         context.init(null, new TrustManager[]{tm}, null);
@@ -661,111 +808,6 @@ public class InstallCert {
         /* tunneling Handshake was successful! */
     }
 
-    /**
-     * Run the program from command line.
-     *
-     * @param args command line arguments as: <code>{@literal <host>[:<port>]
-     *             [<truststore_password>]}</code>
-     * @throws Exception
-     */
-    public static void main(final String[] args)
-            throws Exception {
-
-        Options opts = new Options();
-        opts.addOption("host", true, "The host:port of the server to pull a ssl cert chain from. If not specified, 443 will be used.");
-        opts.addOption("truststore", true, "if specified, this trust store will be used, otherwise JAVA_HOME/cacerts will be used");
-        opts.addOption("truststoreExtra", true, "if specified, this trust store will also be used");
-        opts.addOption("password", true, "if specified, your value will be used for the trust store password. if not specified the default jre password will be used");
-        opts.addOption("passwordExtra", true, "if specified, password for the extra trust store");
-        opts.addOption("noimport", false, "if specified, no changes will be made to trust stores");
-        opts.addOption("file", false, "if specified, untrusted certificates will be stored to individial .crt files");
-        opts.addOption("danger", false, "don't prompt for confirmation, all certificates returned will be auto trusted");
-
-        CommandLineParser parser = new DefaultParser();
-        CommandLine inputs = parser.parse(opts, args);
-
-        if (!inputs.hasOption("host")) {
-            new HelpFormatter().printHelp("java -jar install-cert-<VERSION>-jar-with-dependencies.jar", opts);
-            return;
-        }
-
-        InstallCert ref = new InstallCert();
-
-        // handle command line arguments
-        String host = null;
-        int port = 0;
-
-        char[] password = null;
-
-        char[] pwd2 = null;
-        File storeLocation2 = null;
-
-        // handle standard arguments
-        String[] c = inputs.getOptionValue("host").split(":");
-        host = c[0];
-        port = (c.length < 2) ? 443 : Integer.parseInt(c[1]);
-        if (inputs.hasOption("password")) {
-            password = inputs.getOptionValue("password").toCharArray();
-        } else {
-            password = DEFAULT;
-        }
-        if (inputs.hasOption("passwordExtra")) {
-            pwd2 = inputs.getOptionValue("passwordExtra").toCharArray();
-        } else {
-            pwd2 = DEFAULT;
-        }
-
-        ref.trustStoresToModify.addAll(findTrustStores());
-        if (inputs.hasOption("truststore")) {
-            ref.addTrustStore(new File(inputs.getOptionValue("truststore")), password);
-        }
-
-        if (inputs.hasOption("truststoreExtra")) {
-            storeLocation2 = new File(inputs.getOptionValue("truststoreExtra"));
-            ref.addTrustStore(storeLocation2, pwd2);
-        }
-
-        Set<X509Certificate> untrustedCerts = ref.getCerts(host, port);
-        Set<X509Certificate> certsToSave = new HashSet<X509Certificate>();
-
-        // save the new certificates approved by the user
-        if (!untrustedCerts.isEmpty()) {
-            // assign aliases using host name and certificate common name
-            for (X509Certificate cert : untrustedCerts) {
-                System.out.println();
-                System.out.println(ref.prettyPrintCertificate(cert, "\n"));
-
-                if (inputs.hasOption("danger")) {
-                    certsToSave.add(cert);
-                } else {
-                System.out.print("Do you want to trust this certifcate (y/n)? > ");
-                String answer = System.console().readLine();
-                if ("y".equalsIgnoreCase(answer)) {
-                    certsToSave.add(cert);
-                }
-                }
-
-            }
-        }
-
-        // save the new certificates approved by the user
-        if (!certsToSave.isEmpty()) {
-
-            if (inputs.hasOption("file")) {
-                saveCerts(certsToSave, host);
-            }
-            if (inputs.hasOption("noimport")) {
-                System.out.println("Skipping JKS import due to -noimport flag");
-            } else {
-                ref.applyChanges(certsToSave, host);
-            }
-
-        } else {
-            System.out.println();
-            System.out.println("No new certificates found to be added.");
-        }
-    } // main
-
     public String prettyPrintCertificate(X509Certificate cert, String newLine) throws InvalidNameException, CertificateEncodingException {
         StringBuilder sb = new StringBuilder();
 
@@ -787,49 +829,6 @@ public class InstallCert {
         return sb.toString();
     }
 
-    protected static String joinStringArray(String[] array, String delimiter) {
-        StringBuilder sb = new StringBuilder();
-        for (String s : array) {
-            if (sb.length() > 0) {
-                sb.append(delimiter);
-            }
-            sb.append(s);
-        }
-        return sb.toString();
-    } // joinStringArray
-
-    protected static String toHexString(byte[] bytes) {
-        StringBuilder sb = new StringBuilder(bytes.length * 3);
-        for (int b : bytes) {
-            sb.append(String.format("%02x ", b & 0xff));
-        }
-        return sb.toString();
-    } // toHexString
-
-    protected static String ask(String prompt)
-            throws IOException {
-        System.out.print(prompt);
-        BufferedReader stdinReader
-                = new BufferedReader(new InputStreamReader(System.in));
-        String line = stdinReader.readLine().trim();
-        return line;
-    } // ask
-
-    public static String getCommonName(X509Certificate cert)
-            throws InvalidNameException {
-        // use LDAP API to parse the certifiate Subject :)
-        // see http://stackoverflow.com/a/7634755/972463
-        LdapName ldapDN
-                = new LdapName(cert.getSubjectX500Principal().getName());
-        String cn = "";
-        for (Rdn rdn : ldapDN.getRdns()) {
-            if (rdn.getType().equals("CN")) {
-                cn = rdn.getValue().toString();
-            }
-        }
-        return cn;
-    }  // getCommonName
-
     public void applyChanges(Set<X509Certificate> certsToSave, String host) throws Exception {
 
         if (trustStoresToModify.isEmpty()) {
@@ -849,6 +848,52 @@ public class InstallCert {
             wrapper.store.store(out, wrapper.keyStorePassword);
             out.close();
 
+        }
+    }
+
+    public static class KeyStoreWrapper {
+
+        private KeyStore store;
+        private File keyStoreLocation;
+        private char[] keyStorePassword;
+
+        public KeyStore getStore() {
+            return store;
+        }
+
+        public void setStore(KeyStore store) {
+            this.store = store;
+        }
+
+        public File getKeyStoreLocation() {
+            return keyStoreLocation;
+        }
+
+        public void setKeyStoreLocation(File keyStoreLocation) {
+            this.keyStoreLocation = keyStoreLocation;
+        }
+
+        public char[] getKeyStorePassword() {
+            return keyStorePassword;
+        }
+
+        public void setKeyStorePassword(char[] keyStorePassword) {
+            this.keyStorePassword = keyStorePassword;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (other instanceof KeyStoreWrapper) {
+                return keyStoreLocation.equals(((KeyStoreWrapper) other).keyStoreLocation);
+            }
+            return false;
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 7;
+            hash = 41 * hash + (this.keyStoreLocation != null ? this.keyStoreLocation.hashCode() : 0);
+            return hash;
         }
     }
 
