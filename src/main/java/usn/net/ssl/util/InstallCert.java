@@ -71,7 +71,6 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
-import javax.xml.bind.DatatypeConverter;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -184,7 +183,8 @@ public class InstallCert {
         StringWriter sw = new StringWriter();
 
         sw.write("-----BEGIN CERTIFICATE-----\n");
-        sw.write(DatatypeConverter.printBase64Binary(cert.getEncoded()).replaceAll("(.{64})", "$1\n"));
+        String encoded = org.apache.commons.codec.binary.Base64.encodeBase64String(cert.getEncoded());
+        sw.write(encoded.replaceAll("(.{64})", "$1\n"));
         sw.write("\n-----END CERTIFICATE-----\n");
 
         return sw.toString();
