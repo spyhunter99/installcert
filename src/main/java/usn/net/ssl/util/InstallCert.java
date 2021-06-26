@@ -64,7 +64,6 @@ import javax.naming.InvalidNameException;
 import javax.naming.ldap.LdapName;
 import javax.naming.ldap.Rdn;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLSocket;
@@ -316,7 +315,6 @@ public class InstallCert {
         opts.addOption("file", false, "if specified, untrusted certificates will be stored to individial .crt files");
         opts.addOption("danger", false, "don't prompt for confirmation, all certificates returned will be auto trusted");
         opts.addOption("skipDisco", false, "skip automatic JRE trust store detection");
-        opts.addOption("enableAll", false, "if present, force enables all supported ciphers and SSL/TLS protocols, even the older unsafe onces.");
         /*
         * useful for when the current JRE trust's something, but the target JRE that needs to be
         * updated does not
@@ -332,9 +330,7 @@ public class InstallCert {
         }
 
         InstallCert ref = new InstallCert();
-        if (inputs.hasOption("enableAll")) {
-            ref.setForceEnableAllProtocolsAndCiphers(true);
-        }
+
         // handle command line arguments
         String host = null;
         int port = 0;
@@ -461,27 +457,7 @@ public class InstallCert {
         return cn;
     }  // getCommonName
     private boolean excludeAllTrustStates = false;
-    private boolean forceEnableAllProtocolsAndCiphers = false;
 
-    /**
-     * default is false
-     *
-     * @return
-     */
-    public boolean isForceEnableAllProtocolsAndCiphers() {
-        return forceEnableAllProtocolsAndCiphers;
-    }
-
-    /**
-     * if set to true, this will force enable all supported ciphers and SSL/TLS
-     * protocols. In newer versions of the JRE, older protocols get disabled,
-     * this feature can reenable them if you have an old server
-     *
-     * @param forceEnableAllProtocolsAndCiphers
-     */
-    public void setForceEnableAllProtocolsAndCiphers(boolean forceEnableAllProtocolsAndCiphers) {
-        this.forceEnableAllProtocolsAndCiphers = forceEnableAllProtocolsAndCiphers;
-    }
     private MessageDigest sha1 = null;
     private MessageDigest md5 = null;
     private Set<KeyStoreWrapper> trustStoresToModify = new HashSet<KeyStoreWrapper>();
@@ -583,14 +559,7 @@ public class InstallCert {
         SavingTrustManager tm
                 = new SavingTrustManager(defaultTrustManager, trustStoresToModify);
         context.init(null, new TrustManager[]{tm}, null);
-        if (forceEnableAllProtocolsAndCiphers) {
-            SSLEngine engine = context.createSSLEngine();
-            //see issue 17, enable all protocols and ciphers
-            engine.setEnabledCipherSuites(engine.getSupportedCipherSuites());
-            engine.setEnabledProtocols(engine.getSupportedProtocols());
-        }
         SSLSocketFactory factory = context.getSocketFactory();
-
 
         /*
          * Set up a socket to do tunneling through the proxy.

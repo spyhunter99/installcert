@@ -25,7 +25,6 @@ public class InstallCertTest {
     public void testCertToString() throws Exception {
         System.out.println("certToString");
         InstallCert x = new InstallCert();
-        x.setForceEnableAllProtocolsAndCiphers(true);
         x.setExcludeAllTrustStates(true);
         Set<X509Certificate> certs = x.getCerts("www.google.com", 443);
         Assert.assertNotNull(certs);
