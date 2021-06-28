@@ -5,7 +5,7 @@
     <packaging>jar</packaging>
     <groupId>com.github.spyhunter99</groupId>
     <artifactId>install-cert</artifactId>
-    <version>1.0.7</version>
+    <version>1.0.8-SNAPSHOT</version>
     <name>Install Cert</name>
     <description>A utility to add certs to the trust store from a connection attempt, originially written by Oracle</description>
     <url>https://github.com/spyhunter99</url>
@@ -106,7 +106,7 @@
         <connection>scm:git:https://github.com/spyhunter99/installcert.git</connection>
         <developerConnection>scm:git:https://github.com/spyhunter99/installcert.git</developerConnection>
         <url>https://github.com/spyhunter99/installcert/</url>
-        <tag>installcert-1.0.7</tag>
+        <tag>installcert-1.0.0</tag>
     </scm>
  
     <dependencies>
