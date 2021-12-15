@@ -23,7 +23,7 @@ public class StarttlsHandlerPOSTGRES implements StarttlsHandler {
 
         public DumperFactory(String arg) throws GeneralSecurityException {
 
-            _factory = InstallCert.getContext().getSocketFactory();
+            factory = InstallCert.getContext().getSocketFactory();
         }
     }
 
