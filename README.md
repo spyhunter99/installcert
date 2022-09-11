@@ -18,7 +18,7 @@ into another application as a utility. That's where this fork comes in. Although
 added, it has been refactored and reworked to be used as an embedded library.
 
 
-This will be published to maven central soon.
+This is published to maven central.
 
 ## What protocols are supported?
 
