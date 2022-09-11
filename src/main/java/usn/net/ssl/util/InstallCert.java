@@ -214,10 +214,12 @@ public class InstallCert {
                             return (pathname.isDirectory());
                         }
                     });
-                    for (File file : javaVersion) {
+                    if (javaVersion != null) {
+                        for (File file : javaVersion) {
 
-                        wrappers.addAll(scanJavaInstall(file));
+                            wrappers.addAll(scanJavaInstall(file));
 
+                        }
                     }
                 }
             }
