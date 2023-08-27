@@ -85,6 +85,9 @@ public class KeyStoreUtilities {
                 wrappers.add(wrapper);
             } catch (Exception ex) {
                 LOG.warn(ex.getMessage(), ex);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(ex.getMessage(), ex);
+                }
             }
         }
         cacerts = new File(file, "jre/lib/security/cacerts");
@@ -97,6 +100,9 @@ public class KeyStoreUtilities {
                 wrappers.add(wrapper);
             } catch (Exception ex) {
                 LOG.warn(ex.getMessage(), ex);
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(ex.getMessage(), ex);
+                }
             }
         }
         return wrappers;
@@ -168,5 +174,16 @@ public class KeyStoreUtilities {
         }
         return sb.toString();
     }
+
+    public static String joinStringArray(String[] array, String delimiter) {
+        StringBuilder sb = new StringBuilder();
+        for (String s : array) {
+            if (sb.length() > 0) {
+                sb.append(delimiter);
+            }
+            sb.append(s);
+        }
+        return sb.toString();
+    } // joinStringArray
 
 }

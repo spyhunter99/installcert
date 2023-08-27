@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * TODO make the timeouts adjustable
- * 
+ *
  * A {@link StarttlsHandler} implementation for IMAP protocol.
  */
 public class StarttlsHandlerIMAP
@@ -28,22 +28,10 @@ public class StarttlsHandlerIMAP
         this.host = host;
         this.port = port;
 
-        final int timeout = TimeoutSettings.getOverallTimeout();
         Thread t = new Thread(this);
         t.start();
 
-        Thread.sleep(timeout);
-        t.interrupt();
-        try {
-            t.suspend();
-        } catch (Throwable ex) {
-            LOG.warn(ex.getMessage(), ex);
-        }
-        try {
-            t.stop();
-        } catch (Throwable ex) {
-            LOG.warn(ex.getMessage(), ex);
-        }
+        t.join();
 
         return returnValue;
 
@@ -59,12 +47,12 @@ public class StarttlsHandlerIMAP
         mailProps.put("mail.store.protocol", "imap");
         mailProps.put("mail.imap.socketFactory.class",
                 "javax.net.ssl.SSLSocketFactory");
-        mailProps.put("mail.imap.connectionpooltimeout", TimeoutSettings.getConnectionTimeout()+"");
-        mailProps.put("mail.imap.connectiontimeout", TimeoutSettings.getConnectionTimeout()+"");
-        mailProps.put("mail.imap.timeout", TimeoutSettings.getConnectionTimeout()+"");
+        mailProps.put("mail.imap.connectionpooltimeout", TimeoutSettings.getConnectionTimeout() + "");
+        mailProps.put("mail.imap.connectiontimeout", TimeoutSettings.getConnectionTimeout() + "");
+        mailProps.put("mail.imap.timeout", TimeoutSettings.getConnectionTimeout() + "");
         mailProps.put("mail.imap.socketFactory.fallback", "false");
         mailProps.put("mail.imap.starttls.enable", "true");
-        mailProps.put("mail.imaps.timeout", TimeoutSettings.getConnectionTimeout()+"");
+        mailProps.put("mail.imaps.timeout", TimeoutSettings.getConnectionTimeout() + "");
         Security.setProperty("ssl.SocketFactory.provider",
                 SavingSSLSocketFactory.class.getName());
 
@@ -74,6 +62,9 @@ public class StarttlsHandlerIMAP
             store = mailSession.getStore("imap");
         } catch (NoSuchProviderException e) {
             LOG.warn(e.getMessage());
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(e.getMessage(), e);
+            }
             returnValue = false;
             return;
         }
@@ -84,9 +75,15 @@ public class StarttlsHandlerIMAP
             // success
             LOG.error("ERROR on IMAP authentication: "
                     + e.toString());
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(e.getMessage(), e);
+            }
             returnValue = true;
         } catch (MessagingException e) {
             LOG.warn(e.getMessage());
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(e.getMessage(), e);
+            }
             returnValue = false;
         } finally {
             if (store.isConnected()) {
@@ -94,6 +91,9 @@ public class StarttlsHandlerIMAP
                     store.close();
                 } catch (MessagingException e) {
                     // nothing to do here...
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug(e.getMessage(), e);
+                    }
                 }
             }
 

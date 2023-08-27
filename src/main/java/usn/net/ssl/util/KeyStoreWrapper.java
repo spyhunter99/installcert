@@ -9,7 +9,7 @@ import java.security.KeyStore;
 
 /**
  *
- * @author Dad
+ * @author AO
  */
 public class KeyStoreWrapper {
 
@@ -64,8 +64,5 @@ public class KeyStoreWrapper {
         hash = 41 * hash + (this.keyStoreLocation != null ? this.keyStoreLocation.hashCode() : 0);
         return hash;
     }
-
-   
-    
 
 }

@@ -115,8 +115,14 @@ public class Starttls {
         } catch (ClassNotFoundException e) {
             // not really observed, but we should expect may happen...
             LOG.warn("Could not find a registered handler " + handlerClassname + ". Exception: " + e.getMessage());
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(e.getMessage(), e);
+            }
             return false;
         } catch (NoClassDefFoundError e) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(e.getMessage(), e);
+            }
             LOG.warn("Could not find a java class or dependency library needed for " + handlerClassname + ". Exception: " + e.getMessage());
             return false;
         }
@@ -126,10 +132,16 @@ public class Starttls {
         } catch (InstantiationException e) {
             // should not happen...
             LOG.warn(e.getMessage());
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(e.getMessage(), e);
+            }
             return false;
         } catch (IllegalAccessException e) {
             // should not happen...
             LOG.warn(e.getMessage());
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(e.getMessage(), e);
+            }
             return false;
         }
         return handler.run(host, port, proxyTunnel);

@@ -8,9 +8,9 @@ public class StarttlsHandlerLDAPGCS extends StarttlsHandlerLDAPS {
     public StarttlsHandlerLDAPGCS() {
         super();
     }
-    
+
     @Override
-     public String getUrlPrefix(){
+    public String getUrlPrefix() {
         return "ldaps://";
     }
 } // class StarttlsHandlerLDAP

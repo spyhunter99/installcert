@@ -19,6 +19,9 @@ public class StarttlsHandlerPOSTGRES implements StarttlsHandler {
         try {
             ds = Class.forName("org.postgresql.ds.PGSimpleDataSource").newInstance();
         } catch (Throwable t) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(t.getMessage(), t);
+            }
             throw new Exception("Unable to classload postgres jdbc driver. Check to ensure it's on the classpath");
         }
         try {
@@ -33,6 +36,9 @@ public class StarttlsHandlerPOSTGRES implements StarttlsHandler {
             return true;
         } catch (Exception ex) {
             LOG.warn(ex.getMessage(), ex);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(ex.getMessage(), ex);
+            }
         }
         return false;
     }

@@ -53,7 +53,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
@@ -145,13 +144,25 @@ public class InstallCert {
 
     private static final Logger LOG = LoggerFactory.getLogger(InstallCert.class.getName());
     public static final char[] DEFAULT = "changeit".toCharArray();
-    final static String PROGRAM_TERMINATED = "Program terminated.";
-
-    final static String EXTRA_CERTS_FILE_NAME = "extracerts";
+  
 
     //this is also the only variable that prevents this class from being thread safe.
     // this one is needed here to allow being shared with embedded classes
     private static SSLContext context;
+    public static MessageDigest sha1 = null;
+    public static MessageDigest md5 = null;
+    static {
+        try {
+            sha1 = MessageDigest.getInstance("SHA1");
+        } catch (NoSuchAlgorithmException ex) {
+            LOG.info("SHA1 not available " + ex.getMessage());
+        }
+        try {
+            md5 = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException ex) {
+            LOG.info("MD5 not available " + ex.getMessage());
+        }
+    }
 
     private static void saveCerts(Set<X509Certificate> certsToSave, String host) throws Exception {
         for (X509Certificate cert : certsToSave) {
@@ -300,17 +311,6 @@ public class InstallCert {
         }
     } // main
 
-    protected static String joinStringArray(String[] array, String delimiter) {
-        StringBuilder sb = new StringBuilder();
-        for (String s : array) {
-            if (sb.length() > 0) {
-                sb.append(delimiter);
-            }
-            sb.append(s);
-        }
-        return sb.toString();
-    } // joinStringArray
-
     protected static String ask(String prompt)
             throws IOException {
         System.out.print(prompt);
@@ -319,24 +319,12 @@ public class InstallCert {
         String line = stdinReader.readLine().trim();
         return line;
     } // ask
+    
+    
     private boolean excludeAllTrustStates = false;
 
-    public static MessageDigest sha1 = null;
-    public static MessageDigest md5 = null;
     private Set<KeyStoreWrapper> trustStoresToModify = new HashSet<KeyStoreWrapper>();
 
-    static {
-        try {
-            sha1 = MessageDigest.getInstance("SHA1");
-        } catch (NoSuchAlgorithmException ex) {
-            LOG.info("SHA1 not available " + ex.getMessage());
-        }
-        try {
-            md5 = MessageDigest.getInstance("MD5");
-        } catch (NoSuchAlgorithmException ex) {
-            LOG.info("MD5 not available " + ex.getMessage());
-        }
-    }
 
     public InstallCert() {
 
@@ -391,14 +379,14 @@ public class InstallCert {
         try {
             tmf.init((KeyStore) null);
         } catch (Exception ex) {
-             LOG.warn("failed to null trust store ", ex);
+            LOG.warn("failed to null trust store ", ex);
         }
         // initialize it with known certificate data
         for (KeyStoreWrapper wrapper : trustStoresToModify) {
             try {
                 tmf.init(wrapper.getStore());
             } catch (Exception ex) {
-                LOG.warn( "failed to apply trust store " + wrapper.getKeyStoreLocation().getAbsolutePath(), ex);
+                LOG.warn("failed to apply trust store " + wrapper.getKeyStoreLocation().getAbsolutePath(), ex);
             }
         }
 
@@ -483,7 +471,7 @@ public class InstallCert {
                 // this is the standard case: looks like we just got a
                 // previously unknown certificate, so report it and go
                 // ahead...
-                LOG.info(e.toString());
+                LOG.info(e.getMessage());
             } else if (e.getCause() != null
                     && e.getCause().getClass().getName().equals("java.io.EOFException")) // "Remote host closed connection during handshake"
             {
@@ -496,14 +484,23 @@ public class InstallCert {
                     // Starttls.consider () is expected to have reported
                     // everything except the final good-bye...
                     LOG.info(e.getMessage());
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug(e.getMessage(), e);
+                    }
                 }
             } else {
-                LOG.info(e.getMessage(), e);
+                LOG.info(e.toString());
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(e.getMessage(), e);
+                }
             }
         } catch (SSLException e) {
             if (e.getMessage().equals("Unrecognized SSL message, plaintext connection?")) {
                 LOG.info("ERROR on SSL handshake: "
                         + e.toString());
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(e.getMessage(), e);
+                }
                 if (sslSocket != null) {
                     sslSocket.close();
                 }
@@ -512,14 +509,23 @@ public class InstallCert {
                     // Starttls.consider () is expected to have reported
                     // everything except the final good-bye...
                     LOG.info(e.getMessage());
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug(e.getMessage(), e);
+                    }
                 }
             } else {
                 LOG.info(e.getMessage());
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(e.getMessage(), e);
+                }
             }
         } catch (SocketException e) {
             if (e.getMessage().equals("Connection reset")) {
                 LOG.info("ERROR on SSL handshake: "
                         + e.toString());
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(e.getMessage(), e);
+                }
                 if (sslSocket != null) {
                     sslSocket.close();
                 }
@@ -528,9 +534,15 @@ public class InstallCert {
                     // Starttls.consider () is expected to have reported
                     // everything except the final good-bye...
                     LOG.info(e.getMessage());
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug(e.getMessage(), e);
+                    }
                 }
             } else {
                 LOG.info(e.getMessage());
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(e.getMessage(), e);
+                }
             }
         } finally {
 
@@ -587,6 +599,7 @@ public class InstallCert {
     }
 
     /**
+     * Proxy support
      * see https://github.com/escline/InstallCert/issues/9
      *
      * @author vpablos@github
@@ -733,8 +746,11 @@ public class InstallCert {
                         try {
                             this.allAccumulatedCerts.add((X509Certificate) wrapper.getStore().getCertificate(alias));
                         } catch (Exception ex) {
-                            LOG.info(ex.getMessage(), ex);
-                            
+                            LOG.info(ex.getMessage());
+                            if (LOG.isDebugEnabled()) {
+                                LOG.debug(ex.getMessage(), ex);
+                            }
+
                         }
                     }
                 }

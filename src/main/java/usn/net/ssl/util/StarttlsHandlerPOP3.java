@@ -31,19 +31,7 @@ public class StarttlsHandlerPOP3
         Thread t = new Thread(this);
         t.start();
 
-        Thread.sleep(timeout);
-        t.interrupt();
-
-        try {
-            t.suspend();
-        } catch (Throwable ex) {
-            ex.printStackTrace();
-        }
-        try {
-            t.stop();
-        } catch (Throwable ex) {
-            ex.printStackTrace();
-        }
+        t.join();
 
         return returnValue;
     } // run
@@ -61,13 +49,13 @@ public class StarttlsHandlerPOP3
         mailProps.put("mail.pop3.socketFactory.fallback", "false");
         mailProps.put("mail.pop3.starttls.enable", "true");
 
-        mailProps.put("mail.smtp.timeout", TimeoutSettings.getConnectionTimeout()+"");
-        mailProps.put("mail.smtp.connectiontimeout", TimeoutSettings.getConnectionTimeout()+"");
-        mailProps.put("mail.pop3.timeout", TimeoutSettings.getConnectionTimeout()+"");
-        mailProps.put("mail.pop3.connectiontimeout", TimeoutSettings.getConnectionTimeout()+"");
-        mailProps.put("mail.imap.timeout", TimeoutSettings.getConnectionTimeout()+"");
-        mailProps.put("mail.imap.connectiontimeout", TimeoutSettings.getConnectionTimeout()+"");
-        mailProps.put("mail.imap.connectionpooltimeout",TimeoutSettings.getConnectionTimeout()+"");
+        mailProps.put("mail.smtp.timeout", TimeoutSettings.getConnectionTimeout() + "");
+        mailProps.put("mail.smtp.connectiontimeout", TimeoutSettings.getConnectionTimeout() + "");
+        mailProps.put("mail.pop3.timeout", TimeoutSettings.getConnectionTimeout() + "");
+        mailProps.put("mail.pop3.connectiontimeout", TimeoutSettings.getConnectionTimeout() + "");
+        mailProps.put("mail.imap.timeout", TimeoutSettings.getConnectionTimeout() + "");
+        mailProps.put("mail.imap.connectiontimeout", TimeoutSettings.getConnectionTimeout() + "");
+        mailProps.put("mail.imap.connectionpooltimeout", TimeoutSettings.getConnectionTimeout() + "");
 
         Security.setProperty("ssl.SocketFactory.provider",
                 SavingSSLSocketFactory.class.getName());
@@ -77,7 +65,10 @@ public class StarttlsHandlerPOP3
         try {
             store = mailSession.getStore("pop3");
         } catch (NoSuchProviderException e) {
-           LOG.warn(e.getMessage(), e);
+            LOG.warn(e.getMessage(), e);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(e.getMessage(), e);
+            }
             returnValue = false;
             return;
         }
@@ -88,9 +79,15 @@ public class StarttlsHandlerPOP3
             // success
             LOG.error("ERROR on POP3 authentication: "
                     + e.toString());
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(e.getMessage(), e);
+            }
             returnValue = false;
         } catch (MessagingException e) {
             LOG.error(e.getMessage());
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(e.getMessage(), e);
+            }
             returnValue = false;
         } finally {
             if (store != null && store.isConnected()) {
@@ -98,7 +95,9 @@ public class StarttlsHandlerPOP3
                     store.close();
                 } catch (MessagingException e) {
                     // nothing to do here...
-                    LOG.error(e.getMessage());
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug(e.getMessage(), e);
+                    }
                 }
             }
 

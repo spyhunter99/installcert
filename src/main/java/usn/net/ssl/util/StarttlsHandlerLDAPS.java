@@ -4,14 +4,14 @@ package usn.net.ssl.util;
  * A {@link StarttlsHandler} implementation for LDAP protocol.
  */
 public class StarttlsHandlerLDAPS
-       extends StarttlsHandlerLDAP {
+        extends StarttlsHandlerLDAP {
 
     public StarttlsHandlerLDAPS() {
         super();
     }
-    
+
     @Override
-    public String getUrlPrefix(){
+    public String getUrlPrefix() {
         return "ldaps://";
     }
 

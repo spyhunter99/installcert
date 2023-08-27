@@ -6,6 +6,8 @@ import java.net.Socket;
 
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.X509TrustManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An {@link SSLSocketFactory} subclass that takes care of using
@@ -18,6 +20,8 @@ import javax.net.ssl.X509TrustManager;
 public class SavingSSLSocketFactory
         extends SSLSocketFactory {
 
+    private static final Logger LOG = LoggerFactory.getLogger(SavingSSLSocketFactory.class);
+
     SSLSocketFactory factory;
 
     public SavingSSLSocketFactory() throws Exception {
@@ -25,6 +29,9 @@ public class SavingSSLSocketFactory
             this.factory = InstallCert.getContext().getSocketFactory();
 
         } catch (Exception e) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(e.getMessage(), e);
+            }
             throw e;
         }
     } // SavingSSLSocketFactory

@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
  */
 public class StarttlsHandlerLDAP
         implements StarttlsHandler {
+
     private static final Logger LOG = LoggerFactory.getLogger(Starttls.class);
 
     private SSLContext sslContext;
@@ -27,8 +28,8 @@ public class StarttlsHandlerLDAP
     public StarttlsHandlerLDAP() {
         this.sslContext = InstallCert.getContext();
     }
-    
-    public String getUrlPrefix(){
+
+    public String getUrlPrefix() {
         return "ldap://";
     }
 
@@ -41,8 +42,8 @@ public class StarttlsHandlerLDAP
         Hashtable<String, String> env = new Hashtable<String, String>();
         env.put(Context.INITIAL_CONTEXT_FACTORY,
                 "com.sun.jndi.ldap.LdapCtxFactory");
-        env.put("com.sun.jndi.ldap.connect.timeout", TimeoutSettings.getConnectionTimeout()+""); // in ms
-        env.put("com.sun.jndi.ldap.read.timeout", TimeoutSettings.getConnectionTimeout()+""); // in ms
+        env.put("com.sun.jndi.ldap.connect.timeout", TimeoutSettings.getConnectionTimeout() + ""); // in ms
+        env.put("com.sun.jndi.ldap.read.timeout", TimeoutSettings.getConnectionTimeout() + ""); // in ms
         env.put(Context.PROVIDER_URL, getUrlPrefix() + host + ":" + port + "/");
 
         LdapContext ctx = null;
@@ -54,6 +55,9 @@ public class StarttlsHandlerLDAP
                 // create the STARTTLS handler object
                 tls = (StartTlsResponse) ctx.extendedOperation(new StartTlsRequest());
             } catch (Exception e) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(e.getMessage(), e);
+                }
                 throw e;
             }
 
@@ -65,13 +69,19 @@ public class StarttlsHandlerLDAP
                 // success
                 LOG.error("ERROR on IMAP authentication: "
                         + e.toString());
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(e.getMessage(), e);
+                }
                 return true;
             } catch (Exception e) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(e.getMessage(), e);
+                }
                 throw e;
             }
-        } catch (Exception ex){
+        } catch (Exception ex) {
             LOG.error(ex.getMessage());
-        }finally {
+        } finally {
             // stop TLS
             if (tls != null) {
                 try {

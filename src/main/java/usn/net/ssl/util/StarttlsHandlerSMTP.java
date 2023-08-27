@@ -23,7 +23,7 @@ public class StarttlsHandlerSMTP
     @Override
     public boolean run(String host, int port, Socket tunnel) throws Exception {
         // see http://javamail.kenai.com/nonav/javadocs/com/sun/mail/smtp/package-summary.html
-        
+
         LOG.info("... trying SMTP with STARTTLS extension ...");
         Properties mailProps = new Properties();
         mailProps.put("mail.transport.protocol", "smtp");
@@ -49,12 +49,18 @@ public class StarttlsHandlerSMTP
             tr = mailSession.getTransport();
         } catch (NoSuchProviderException e) {
             LOG.warn(e.getMessage());
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(e.getMessage(), e);
+            }
             LOG.info("... trying SMTP stopped...");
             return false;
         }
         try {
             tr.connect(host, port, null, null);
         } catch (MessagingException e) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug(e.getMessage(), e);
+            }
             if (e.getNextException() instanceof SSLHandshakeException) {
                 // likely got an unknown certificate, just report it and
                 // return success
@@ -73,6 +79,9 @@ public class StarttlsHandlerSMTP
                     tr.close();
                 } catch (MessagingException e) {
                     // nothing to do here...
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug(e.getMessage(), e);
+                    }
                 }
             }
 
