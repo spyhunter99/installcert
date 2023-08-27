@@ -1,3 +1,5 @@
+[![Stand With Ukraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner2-direct.svg)](https://stand-with-ukraine.pp.ua)
+
 # installcert
 fork of http://s-n-ushakov.blogspot.com/2013/11/yet-another-installcert-for-java-now.html to use as a library
 
