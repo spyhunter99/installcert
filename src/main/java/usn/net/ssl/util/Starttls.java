@@ -5,8 +5,8 @@ import java.io.IOException;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A STARTTLS protocol extension wrapper class that makes an effort to decide on
@@ -14,6 +14,7 @@ import java.util.Set;
  */
 public class Starttls {
 
+    private static final Logger LOG = LoggerFactory.getLogger(Starttls.class);
     // TODO implement NNTP/STARTTLS (119) some day...
     // TODO implement XMPP/STARTTLS (5222) some day...
     private static final Map<Integer, String> registry = new HashMap<>();
@@ -29,21 +30,25 @@ public class Starttls {
         registry.put(5432, "usn.net.ssl.util.StarttlsHandlerPOSTGRES");
     }
 
+    /**
+     * registers a new protocol handler
+     *
+     * @param port port
+     * @param impl fullly qualified java class name
+     */
     public static void register(int port, String impl) {
         registry.put(port, impl);
     }
-    public static void unregister(Integer port, String impl) {
-        if (port!=null)
-            registry.remove(port);
-        if (impl!=null) {
-            Set<Map.Entry<Integer, String>> entrySet = registry.entrySet();
-            for (Entry<Integer, String> item : entrySet) {
-                if (item.getValue().equals(impl)) {
-                    registry.remove(port);
-                    break;
-                }
-            }
-        }
+
+    /**
+     * removes a specific port implementation. Useful if you don't have or want
+     * a specific built in handler
+     *
+     * @param port
+     * @param impl
+     */
+    public static void unregister(int port, String impl) {
+        registry.remove(port);
     }
 
     /**
@@ -67,6 +72,7 @@ public class Starttls {
      *
      * @param host the host to connect to
      * @param port the port to connect to
+     * @param proxyTunnel
      * @return <code>true</code> if getting a certificate via STARTTLS handler
      * is believed to be successful, <code>false</code> otherwise
      * @throws IOException
@@ -108,36 +114,22 @@ public class Starttls {
             handlerClass = handlerUncheckedClass;
         } catch (ClassNotFoundException e) {
             // not really observed, but we should expect may happen...
-            throw e;
+            LOG.warn("Could not find a registered handler " + handlerClassname + ". Exception: " + e.getMessage());
+            return false;
         } catch (NoClassDefFoundError e) {
-            if (e.getCause().getClass()
-                    .equals(ClassNotFoundException.class)
-                    && e.getCause().getMessage()
-                            .equals("javax.mail.NoSuchProviderException")) {
-                System.out.println("ERROR loading protocol-specific STARTTLS handler: "
-                        + e.toString());
-                System.out.println("Looks like you need to make JavaMail library "
-                        + "available on your classpath, something like this:\n"
-                        + "  java -cp " + System.getProperty("java.class.path")
-                        + System.getProperty("path.separator") + "..."
-                        + System.getProperty("file.separator") + "javax.mail.jar "
-                        + "usn.net.ssl.util.InstallCert ");
-                throw e;
-            } else {
-                // provide more info for analysis...
-                throw e;
-            }
+            LOG.warn("Could not find a java class or dependency library needed for " + handlerClassname + ". Exception: " + e.getMessage());
+            return false;
         }
         StarttlsHandler handler = null;
         try {
             handler = handlerClass.newInstance();
         } catch (InstantiationException e) {
             // should not happen...
-            System.out.println(e.getMessage());
+            LOG.warn(e.getMessage());
             return false;
         } catch (IllegalAccessException e) {
             // should not happen...
-            System.out.println(e.getMessage());
+            LOG.warn(e.getMessage());
             return false;
         }
         return handler.run(host, port, proxyTunnel);

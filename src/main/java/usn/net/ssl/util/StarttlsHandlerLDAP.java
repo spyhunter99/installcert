@@ -12,12 +12,15 @@ import javax.naming.ldap.StartTlsRequest;
 import javax.naming.ldap.StartTlsResponse;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLHandshakeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link StarttlsHandler} implementation for LDAP protocol.
  */
 public class StarttlsHandlerLDAP
         implements StarttlsHandler {
+    private static final Logger LOG = LoggerFactory.getLogger(Starttls.class);
 
     private SSLContext sslContext;
 
@@ -33,13 +36,13 @@ public class StarttlsHandlerLDAP
     public boolean run(String host, int port, Socket tunnel) throws Exception // see http://docs.oracle.com/javase/jndi/tutorial/ldap/ext/starttls.html
     // see http://docs.oracle.com/javase/7/docs/technotes/guides/jndi/jndi-ldap.html
     {
-        System.out.println("... trying LDAP with STARTTLS extension ...");
+        LOG.info("... trying LDAP with STARTTLS extension ...");
 
         Hashtable<String, String> env = new Hashtable<String, String>();
         env.put(Context.INITIAL_CONTEXT_FACTORY,
                 "com.sun.jndi.ldap.LdapCtxFactory");
-        env.put("com.sun.jndi.ldap.connect.timeout", "5000"); // in ms
-        env.put("com.sun.jndi.ldap.read.timeout", "5000"); // in ms
+        env.put("com.sun.jndi.ldap.connect.timeout", TimeoutSettings.getConnectionTimeout()+""); // in ms
+        env.put("com.sun.jndi.ldap.read.timeout", TimeoutSettings.getConnectionTimeout()+""); // in ms
         env.put(Context.PROVIDER_URL, getUrlPrefix() + host + ":" + port + "/");
 
         LdapContext ctx = null;
@@ -60,21 +63,21 @@ public class StarttlsHandlerLDAP
             } catch (SSLHandshakeException e) {
                 // likely got an unknown certificate, just report it and return
                 // success
-                System.out.println("ERROR on IMAP authentication: "
+                LOG.error("ERROR on IMAP authentication: "
                         + e.toString());
                 return true;
             } catch (Exception e) {
                 throw e;
             }
         } catch (Exception ex){
-            System.out.println(ex.getMessage());
+            LOG.error(ex.getMessage());
         }finally {
             // stop TLS
             if (tls != null) {
                 try {
                     tls.close();
                 } catch (IOException e) {
-                    //e.printStackTrace();
+                    LOG.debug(e.getMessage(), e);
                 }
             }
 
@@ -83,7 +86,7 @@ public class StarttlsHandlerLDAP
                 try {
                     ctx.close();
                 } catch (NamingException e) {
-                    //e.printStackTrace();
+                    LOG.debug(e.getMessage(), e);
                 }
             }
         }

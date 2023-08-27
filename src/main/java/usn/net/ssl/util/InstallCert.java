@@ -32,15 +32,12 @@ package usn.net.ssl.util;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileFilter;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.Socket;
 import java.net.SocketException;
@@ -48,21 +45,15 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
-import javax.naming.InvalidNameException;
-import javax.naming.ldap.LdapName;
-import javax.naming.ldap.Rdn;
+
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
@@ -76,11 +67,11 @@ import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import sun.security.provider.certpath.SunCertPathBuilderException;
 import sun.security.validator.ValidatorException;
-import static usn.net.ssl.util.InstallCert.certToString;
-import static usn.net.ssl.util.InstallCert.findTrustStores;
 
 /**
  * <p>
@@ -152,8 +143,8 @@ import static usn.net.ssl.util.InstallCert.findTrustStores;
  */
 public class InstallCert {
 
-    private static final Logger LOG = Logger.getLogger(InstallCert.class.getName());
-    private static final char[] DEFAULT = "changeit".toCharArray();
+    private static final Logger LOG = LoggerFactory.getLogger(InstallCert.class.getName());
+    public static final char[] DEFAULT = "changeit".toCharArray();
     final static String PROGRAM_TERMINATED = "Program terminated.";
 
     final static String EXTRA_CERTS_FILE_NAME = "extracerts";
@@ -164,7 +155,7 @@ public class InstallCert {
 
     private static void saveCerts(Set<X509Certificate> certsToSave, String host) throws Exception {
         for (X509Certificate cert : certsToSave) {
-            String alias = host + " - " + getCommonName(cert);
+            String alias = host + " - " + KeyStoreUtilities.getCommonName(cert);
             alias = alias.replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
             File file = null;
             file = new File(alias + ".crt");
@@ -173,128 +164,14 @@ public class InstallCert {
                 file = new File(alias + "-" + i + ".crt");
             }
             FileWriter fw = new FileWriter(file);
-            fw.write(certToString(cert));
+            fw.write(KeyStoreUtilities.certToString(cert));
             fw.close();
-            System.out.println("Cert saved to: " + file.getAbsolutePath());
+            LOG.info("Cert saved to: " + file.getAbsolutePath());
         }
-    }
-
-    public static String certToString(X509Certificate cert) throws CertificateEncodingException {
-        StringWriter sw = new StringWriter();
-
-        sw.write("-----BEGIN CERTIFICATE-----\n");
-        String encoded = org.apache.commons.codec.binary.Base64.encodeBase64String(cert.getEncoded());
-        sw.write(encoded.replaceAll("(.{64})", "$1\n"));
-        sw.write("\n-----END CERTIFICATE-----\n");
-
-        return sw.toString();
-    }
-
-    private static Set<? extends KeyStoreWrapper> scanWindowsCommon(String tmp) {
-
-        //TODO this only covers windows at the moment
-        Set<KeyStoreWrapper> wrappers = new HashSet<KeyStoreWrapper>();
-        File pf = new File(tmp);
-        File java = new File(tmp, "Java");
-        if (java.exists()) {
-
-            File[] javaInstalls = pf.listFiles(new FileFilter() {
-                @Override
-                public boolean accept(File pathname) {
-                    return (pathname.isDirectory() && pathname.getName().equalsIgnoreCase("java"));
-                }
-            });
-
-            if (javaInstalls != null) {
-                for (File javaRoot : javaInstalls) {
-
-                    File[] javaVersion = javaRoot.listFiles(new FileFilter() {
-                        @Override
-                        public boolean accept(File pathname) {
-                            return (pathname.isDirectory());
-                        }
-                    });
-                    if (javaVersion != null) {
-                        for (File file : javaVersion) {
-
-                            wrappers.addAll(scanJavaInstall(file));
-
-                        }
-                    }
-                }
-            }
-        }
-
-        return wrappers;
-    }
-
-    private static Collection<? extends KeyStoreWrapper> scanJavaInstall(File file) {
-        Set<KeyStoreWrapper> wrappers = new HashSet<KeyStoreWrapper>();
-        if (file == null || !file.exists()) {
-            return wrappers;
-        }
-        File cacerts = new File(file, "lib/security/cacerts");
-        if (cacerts.exists()) {
-            KeyStoreWrapper wrapper = new KeyStoreWrapper();
-            wrapper.keyStoreLocation = cacerts;
-            wrapper.keyStorePassword = DEFAULT;
-            try {
-                wrapper.store = getKeyStore(wrapper.keyStoreLocation, wrapper.keyStorePassword);
-                wrappers.add(wrapper);
-            } catch (Exception ex) {
-                LOG.log(Level.WARNING, ex.getMessage(), ex);
-            }
-        }
-        cacerts = new File(file, "jre/lib/security/cacerts");
-        if (cacerts.exists()) {
-            KeyStoreWrapper wrapper = new KeyStoreWrapper();
-            wrapper.keyStoreLocation = cacerts;
-            wrapper.keyStorePassword = DEFAULT;
-            try {
-                wrapper.store = getKeyStore(wrapper.keyStoreLocation, wrapper.keyStorePassword);
-                wrappers.add(wrapper);
-            } catch (Exception ex) {
-                LOG.log(Level.WARNING, ex.getMessage(), ex);
-            }
-        }
-        return wrappers;
     }
 
     public static SSLContext getContext() {
         return context;
-    }
-
-    public static Set<KeyStoreWrapper> findTrustStores() {
-        Set<KeyStoreWrapper> ret = new HashSet<KeyStoreWrapper>();
-        //FIXME support non-windows setups
-        String tmp = System.getenv("ProgramFiles");
-        if (tmp != null) {
-            ret.addAll(scanWindowsCommon(tmp));
-        }
-        tmp = System.getenv("ProgramFiles(x86)");
-        if (tmp != null) {
-            ret.addAll(scanWindowsCommon(tmp));
-        }
-        tmp = System.getProperty("java.home");
-        if (tmp != null) {
-            ret.addAll(scanWindowsCommon(tmp));
-        }
-        tmp = System.getenv("JAVA_HOME");
-        if (tmp != null) {
-            ret.addAll(scanJavaInstall(new File(tmp)));
-        }
-        return ret;
-    }
-
-    public static KeyStore getKeyStore(File file, char[] password) throws Exception {
-        KeyStore ksKnown = KeyStore.getInstance(KeyStore.getDefaultType());
-
-        System.out.println("... loading system truststore from '"
-                + file.getCanonicalPath() + "' ...");
-        InputStream in = new FileInputStream(file);
-        ksKnown.load(in, password);
-        in.close();
-        return ksKnown;
     }
 
     /**
@@ -317,6 +194,8 @@ public class InstallCert {
         opts.addOption("file", false, "if specified, untrusted certificates will be stored to individial .crt files");
         opts.addOption("danger", false, "don't prompt for confirmation, all certificates returned will be auto trusted");
         opts.addOption("skipDisco", false, "skip automatic JRE trust store detection");
+        opts.addOption("connectTimeout", true, "Time in millsecinds for connection attempts. Default is 10 seconds");
+        opts.addOption("overallTimeout", true, "Time in millsecinds for a connection attempt for specific use cases. Default is 15 seconds");
         /*
         * useful for when the current JRE trust's something, but the target JRE that needs to be
         * updated does not
@@ -325,6 +204,13 @@ public class InstallCert {
 
         CommandLineParser parser = new DefaultParser();
         CommandLine inputs = parser.parse(opts, args);
+
+        if (inputs.hasOption("connectTimeout")) {
+            TimeoutSettings.setConnectionTimeout(Integer.parseInt(inputs.getOptionValue("connectTimeout")));
+        }
+        if (inputs.hasOption("overallTimeout")) {
+            TimeoutSettings.setOverallTimeout(Integer.parseInt(inputs.getOptionValue("overallTimeout")));
+        }
 
         if (!inputs.hasOption("host")) {
             new HelpFormatter().printHelp("java -jar install-cert-<VERSION>-jar-with-dependencies.jar", opts);
@@ -359,7 +245,7 @@ public class InstallCert {
 
         //option for no trust store discovery
         if (!inputs.hasOption("skipDisco")) {
-            ref.trustStoresToModify.addAll(findTrustStores());
+            ref.trustStoresToModify.addAll(KeyStoreUtilities.findTrustStores());
         }
 
         if (inputs.hasOption("truststore")) {
@@ -382,8 +268,7 @@ public class InstallCert {
         if (!untrustedCerts.isEmpty()) {
             // assign aliases using host name and certificate common name
             for (X509Certificate cert : untrustedCerts) {
-                System.out.println();
-                System.out.println(ref.prettyPrintCertificate(cert, "\n"));
+                LOG.info(KeyStoreUtilities.prettyPrintCertificate(cert, "\n"));
 
                 if (inputs.hasOption("danger")) {
                     certsToSave.add(cert);
@@ -405,14 +290,13 @@ public class InstallCert {
                 saveCerts(certsToSave, host);
             }
             if (inputs.hasOption("noimport")) {
-                System.out.println("Skipping JKS import due to -noimport flag");
+                LOG.info("Skipping JKS import due to -noimport flag");
             } else {
                 ref.applyChanges(certsToSave, host);
             }
 
         } else {
-            System.out.println();
-            System.out.println("No new certificates found to be added.");
+            LOG.info("No new certificates found to be added.");
         }
     } // main
 
@@ -427,14 +311,6 @@ public class InstallCert {
         return sb.toString();
     } // joinStringArray
 
-    protected static String toHexString(byte[] bytes) {
-        StringBuilder sb = new StringBuilder(bytes.length * 3);
-        for (int b : bytes) {
-            sb.append(String.format("%02x ", b & 0xff));
-        }
-        return sb.toString();
-    } // toHexString
-
     protected static String ask(String prompt)
             throws IOException {
         System.out.print(prompt);
@@ -443,44 +319,33 @@ public class InstallCert {
         String line = stdinReader.readLine().trim();
         return line;
     } // ask
-
-    public static String getCommonName(X509Certificate cert)
-            throws InvalidNameException {
-        // use LDAP API to parse the certifiate Subject :)
-        // see http://stackoverflow.com/a/7634755/972463
-        LdapName ldapDN
-                = new LdapName(cert.getSubjectX500Principal().getName());
-        String cn = "";
-        for (Rdn rdn : ldapDN.getRdns()) {
-            if (rdn.getType().equals("CN")) {
-                cn = rdn.getValue().toString();
-            }
-        }
-        return cn;
-    }  // getCommonName
     private boolean excludeAllTrustStates = false;
 
-    private MessageDigest sha1 = null;
-    private MessageDigest md5 = null;
+    public static MessageDigest sha1 = null;
+    public static MessageDigest md5 = null;
     private Set<KeyStoreWrapper> trustStoresToModify = new HashSet<KeyStoreWrapper>();
 
-    public InstallCert() {
+    static {
         try {
             sha1 = MessageDigest.getInstance("SHA1");
         } catch (NoSuchAlgorithmException ex) {
-            Logger.getLogger(InstallCert.class.getName()).log(Level.SEVERE, null, ex);
+            LOG.info("SHA1 not available " + ex.getMessage());
         }
         try {
             md5 = MessageDigest.getInstance("MD5");
         } catch (NoSuchAlgorithmException ex) {
-            Logger.getLogger(InstallCert.class.getName()).log(Level.SEVERE, null, ex);
+            LOG.info("MD5 not available " + ex.getMessage());
         }
+    }
+
+    public InstallCert() {
+
     }
 
     public List<File> getTrustStores() {
         List<File> files = new ArrayList<File>();
         for (KeyStoreWrapper wrapper : trustStoresToModify) {
-            files.add(wrapper.keyStoreLocation);
+            files.add(wrapper.getKeyStoreLocation());
         }
         return files;
     }
@@ -495,9 +360,9 @@ public class InstallCert {
 
     public void addTrustStore(File file, char[] password) throws Exception {
         KeyStoreWrapper wrapper = new KeyStoreWrapper();
-        wrapper.keyStoreLocation = file;
-        wrapper.keyStorePassword = password;
-        wrapper.store = getKeyStore(file, password);
+        wrapper.setKeyStoreLocation(file);
+        wrapper.setKeyStorePassword(password);
+        wrapper.setStore(KeyStoreUtilities.getKeyStore(file, password));
         trustStoresToModify.add(wrapper);
     }
 
@@ -526,14 +391,14 @@ public class InstallCert {
         try {
             tmf.init((KeyStore) null);
         } catch (Exception ex) {
-            LOG.log(Level.WARNING, "failed to null trust store ", ex);
+             LOG.warn("failed to null trust store ", ex);
         }
         // initialize it with known certificate data
         for (KeyStoreWrapper wrapper : trustStoresToModify) {
             try {
-                tmf.init(wrapper.store);
+                tmf.init(wrapper.getStore());
             } catch (Exception ex) {
-                LOG.log(Level.WARNING, "failed to apply trust store " + wrapper.keyStoreLocation.getAbsolutePath(), ex);
+                LOG.warn( "failed to apply trust store " + wrapper.getKeyStoreLocation().getAbsolutePath(), ex);
             }
         }
 
@@ -579,30 +444,30 @@ public class InstallCert {
 
         Socket tunnel = null;
         if ((tunnelHost != null) && (!tunnelHost.trim().isEmpty())) {
-            System.out.println("Opening socket to proxy " + tunnelHost + ":" + tunnelPort + "...");
+            LOG.info("Opening socket to proxy " + tunnelHost + ":" + tunnelPort + "...");
             tunnel = new Socket(tunnelHost, tunnelPort);
             doTunnelHandshake(tunnel, host, port);
         }
 
-        System.out.println("Opening connection to " + host + ":" + port + "...");
+        LOG.info("Opening connection to " + host + ":" + port + "...");
 
-        System.out.println("... opening connection to " + host + ":" + port
+        LOG.info("... opening connection to " + host + ":" + port
                 + " ...");
         SSLSocket sslSocket = null;
         try {
 
             if (tunnel != null) {
-                System.out.println("Using proxy configuration. proxy: " + tunnelHost + ":" + tunnelPort);
+                LOG.info("Using proxy configuration. proxy: " + tunnelHost + ":" + tunnelPort);
                 sslSocket = (SSLSocket) factory.createSocket(tunnel, host, port, true);
             } else {
                 sslSocket = (SSLSocket) factory.createSocket(host, port);
             }
 
-            sslSocket.setSoTimeout(10000);
-            System.out.println("... starting SSL handshake ...");
+            sslSocket.setSoTimeout(TimeoutSettings.getConnectionTimeout());
+            LOG.info("... starting SSL handshake ...");
 
             sslSocket.startHandshake();
-            System.out.println("No errors, certificate is already trusted.");
+            LOG.info("No errors, certificate is already trusted.");
         } // SMTP/STARTTLS and IMAP/STARTTLS servers seem tending to yield an
         //   SSLException with
         //   "Unrecognized SSL message, plaintext connection?" message.
@@ -618,7 +483,7 @@ public class InstallCert {
                 // this is the standard case: looks like we just got a
                 // previously unknown certificate, so report it and go
                 // ahead...
-                System.out.println(e.toString());
+                LOG.info(e.toString());
             } else if (e.getCause() != null
                     && e.getCause().getClass().getName().equals("java.io.EOFException")) // "Remote host closed connection during handshake"
             {
@@ -630,14 +495,14 @@ public class InstallCert {
                 if (!Starttls.consider(host, port, tunnel)) {
                     // Starttls.consider () is expected to have reported
                     // everything except the final good-bye...
-                    System.out.println(e.getMessage());
+                    LOG.info(e.getMessage());
                 }
             } else {
-                e.printStackTrace();
+                LOG.info(e.getMessage(), e);
             }
         } catch (SSLException e) {
             if (e.getMessage().equals("Unrecognized SSL message, plaintext connection?")) {
-                System.out.println("ERROR on SSL handshake: "
+                LOG.info("ERROR on SSL handshake: "
                         + e.toString());
                 if (sslSocket != null) {
                     sslSocket.close();
@@ -646,14 +511,14 @@ public class InstallCert {
                 if (!Starttls.consider(host, port, tunnel)) {
                     // Starttls.consider () is expected to have reported
                     // everything except the final good-bye...
-                    System.out.println(e.getMessage());
+                    LOG.info(e.getMessage());
                 }
             } else {
-                System.out.println(e.getMessage());
+                LOG.info(e.getMessage());
             }
         } catch (SocketException e) {
             if (e.getMessage().equals("Connection reset")) {
-                System.out.println("ERROR on SSL handshake: "
+                LOG.info("ERROR on SSL handshake: "
                         + e.toString());
                 if (sslSocket != null) {
                     sslSocket.close();
@@ -662,10 +527,10 @@ public class InstallCert {
                 if (!Starttls.consider(host, port, tunnel)) {
                     // Starttls.consider () is expected to have reported
                     // everything except the final good-bye...
-                    System.out.println(e.getMessage());
+                    LOG.info(e.getMessage());
                 }
             } else {
-                System.out.println(e.getMessage());
+                LOG.info(e.getMessage());
             }
         } finally {
 
@@ -684,8 +549,7 @@ public class InstallCert {
         // display the list of obtained certificates, inspect them and
         // interrogate the user whether to save them
         if (chain.length > 0) {
-            System.out.println();
-            System.out.println("Server sent " + chain.length
+            LOG.info("Server sent " + chain.length
                     + " certificate(s):");
 
             for (int i = 0; i < chain.length; i++) {
@@ -693,9 +557,9 @@ public class InstallCert {
 
                 boolean trusted = false;
                 for (KeyStoreWrapper wrapper : trustStoresToModify) {
-                    if (wrapper.store.getCertificateAlias(cert) != null) {
-                        System.out.println("Certificate already known to the"
-                                + " truststore: " + wrapper.keyStoreLocation.getAbsolutePath());
+                    if (wrapper.getStore().getCertificateAlias(cert) != null) {
+                        LOG.info("Certificate already known to the"
+                                + " truststore: " + wrapper.getKeyStoreLocation().getAbsolutePath());
                         trusted = true;
                         break;
                     }
@@ -716,12 +580,8 @@ public class InstallCert {
     public void close() {
 
         for (KeyStoreWrapper wrapper : trustStoresToModify) {
-            wrapper.store = null;
-            wrapper.keyStoreLocation = null;
-            for (int i = 0; i < wrapper.keyStorePassword.length; i++) {
-                wrapper.keyStorePassword[i] = (char) 0;
-            }
-            wrapper.keyStorePassword = null;
+            wrapper.clear();
+
         }
         trustStoresToModify.clear();
     }
@@ -813,27 +673,6 @@ public class InstallCert {
         /* tunneling Handshake was successful! */
     }
 
-    public String prettyPrintCertificate(X509Certificate cert, String newLine) throws InvalidNameException, CertificateEncodingException {
-        StringBuilder sb = new StringBuilder();
-
-        sb.append("Subject ").append(cert.getSubjectDN()).append(newLine);
-        sb.append("   Issuer  ").append(cert.getIssuerDN()).append(newLine);
-        sb.append("   CN      ").append(getCommonName(cert)).append(newLine);
-        sb.append("   From    ").append(cert.getNotBefore().toString()).append(newLine);
-        sb.append("   Util    ").append(cert.getNotAfter().toString()).append(newLine);
-        sb.append("   Serial  ").append(cert.getSerialNumber().toString()).append(newLine);
-        if (sha1 != null) {
-            sha1.update(cert.getEncoded());
-            sb.append("   SHA1    ").append(toHexString(sha1.digest())).append(newLine);
-        }
-        if (md5 != null) {
-            md5.update(cert.getEncoded());
-
-            sb.append("   MD5     ").append(toHexString(md5.digest())).append(newLine);
-        }
-        return sb.toString();
-    }
-
     public void applyChanges(Set<X509Certificate> certsToSave, String host) throws Exception {
 
         if (trustStoresToModify.isEmpty()) {
@@ -841,64 +680,18 @@ public class InstallCert {
         }
 
         for (KeyStoreWrapper wrapper : trustStoresToModify) {
-            System.out.println("Applying changes to " + wrapper.keyStoreLocation.getAbsolutePath());
+            LOG.info("Applying changes to " + wrapper.getKeyStoreLocation().getAbsolutePath());
 
             // assign aliases using host name and certificate common name
             for (X509Certificate cert : certsToSave) {
-                String alias = host + " - " + getCommonName(cert);
-                wrapper.store.setCertificateEntry(alias, cert);
+                String alias = host + " - " + KeyStoreUtilities.getCommonName(cert);
+                wrapper.getStore().setCertificateEntry(alias, cert);
             }
 
-            OutputStream out = new FileOutputStream(wrapper.keyStoreLocation);
-            wrapper.store.store(out, wrapper.keyStorePassword);
+            OutputStream out = new FileOutputStream(wrapper.getKeyStoreLocation());
+            wrapper.getStore().store(out, wrapper.getKeyStorePassword());
             out.close();
 
-        }
-    }
-
-    public static class KeyStoreWrapper {
-
-        private KeyStore store;
-        private File keyStoreLocation;
-        private char[] keyStorePassword;
-
-        public KeyStore getStore() {
-            return store;
-        }
-
-        public void setStore(KeyStore store) {
-            this.store = store;
-        }
-
-        public File getKeyStoreLocation() {
-            return keyStoreLocation;
-        }
-
-        public void setKeyStoreLocation(File keyStoreLocation) {
-            this.keyStoreLocation = keyStoreLocation;
-        }
-
-        public char[] getKeyStorePassword() {
-            return keyStorePassword;
-        }
-
-        public void setKeyStorePassword(char[] keyStorePassword) {
-            this.keyStorePassword = keyStorePassword;
-        }
-
-        @Override
-        public boolean equals(Object other) {
-            if (other instanceof KeyStoreWrapper) {
-                return keyStoreLocation.equals(((KeyStoreWrapper) other).keyStoreLocation);
-            }
-            return false;
-        }
-
-        @Override
-        public int hashCode() {
-            int hash = 7;
-            hash = 41 * hash + (this.keyStoreLocation != null ? this.keyStoreLocation.hashCode() : 0);
-            return hash;
         }
     }
 
@@ -934,13 +727,14 @@ public class InstallCert {
             }
             if (ksExtra != null) {
                 for (KeyStoreWrapper wrapper : ksExtra) {
-                    Enumeration<String> ksAliases = wrapper.store.aliases();
+                    Enumeration<String> ksAliases = wrapper.getStore().aliases();
                     while (ksAliases.hasMoreElements()) {
                         String alias = ksAliases.nextElement();
                         try {
-                            this.allAccumulatedCerts.add((X509Certificate) wrapper.store.getCertificate(alias));
+                            this.allAccumulatedCerts.add((X509Certificate) wrapper.getStore().getCertificate(alias));
                         } catch (Exception ex) {
-                            ex.printStackTrace();
+                            LOG.info(ex.getMessage(), ex);
+                            
                         }
                     }
                 }

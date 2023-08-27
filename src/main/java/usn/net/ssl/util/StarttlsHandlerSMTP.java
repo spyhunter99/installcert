@@ -9,6 +9,8 @@ import javax.mail.NoSuchProviderException;
 import javax.mail.Session;
 import javax.mail.Transport;
 import javax.net.ssl.SSLHandshakeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link StarttlsHandler} implementation for SMTP protocol.
@@ -16,24 +18,27 @@ import javax.net.ssl.SSLHandshakeException;
 public class StarttlsHandlerSMTP
         implements StarttlsHandler {
 
+    private static final Logger LOG = LoggerFactory.getLogger(Starttls.class);
+
     @Override
-    public boolean run(String host, int port, Socket tunnel) throws Exception // see http://javamail.kenai.com/nonav/javadocs/com/sun/mail/smtp/package-summary.html
-    {
-        System.out.println("... trying SMTP with STARTTLS extension ...");
+    public boolean run(String host, int port, Socket tunnel) throws Exception {
+        // see http://javamail.kenai.com/nonav/javadocs/com/sun/mail/smtp/package-summary.html
+        
+        LOG.info("... trying SMTP with STARTTLS extension ...");
         Properties mailProps = new Properties();
         mailProps.put("mail.transport.protocol", "smtp");
         mailProps.put("mail.smtp.socketFactory.class",
                 "javax.net.ssl.SSLSocketFactory");
         mailProps.put("mail.smtp.socketFactory.fallback", "false");
         mailProps.put("mail.smtp.starttls.enable", "true");
-        mailProps.put("mail.smtp.timeout", "3000");
-        mailProps.put("mail.smtp.connectiontimeout", "3000");
-        mailProps.put("mail.smtp.timeout", "3000");
-        mailProps.put("mail.pop3.timeout", "3000");
-        mailProps.put("mail.pop3.connectiontimeout", "3000");
-        mailProps.put("mail.imap.timeout", "3000");
-        mailProps.put("mail.imap.connectiontimeout", "3000");
-        mailProps.put("mail.imap.connectionpooltimeout", "3000");
+        mailProps.put("mail.smtp.timeout", TimeoutSettings.getConnectionTimeout() + "");
+        mailProps.put("mail.smtp.connectiontimeout", TimeoutSettings.getConnectionTimeout() + "");
+        mailProps.put("mail.smtp.timeout", TimeoutSettings.getConnectionTimeout() + "");
+        mailProps.put("mail.pop3.timeout", TimeoutSettings.getConnectionTimeout() + "");
+        mailProps.put("mail.pop3.connectiontimeout", TimeoutSettings.getConnectionTimeout() + "");
+        mailProps.put("mail.imap.timeout", TimeoutSettings.getConnectionTimeout() + "");
+        mailProps.put("mail.imap.connectiontimeout", TimeoutSettings.getConnectionTimeout() + "");
+        mailProps.put("mail.imap.connectionpooltimeout", TimeoutSettings.getConnectionTimeout() + "");
 
         Security.setProperty("ssl.SocketFactory.provider",
                 SavingSSLSocketFactory.class.getName());
@@ -43,8 +48,8 @@ public class StarttlsHandlerSMTP
         try {
             tr = mailSession.getTransport();
         } catch (NoSuchProviderException e) {
-            e.printStackTrace();
-            System.out.println("... trying SMTP with stopped...");
+            LOG.warn(e.getMessage());
+            LOG.info("... trying SMTP stopped...");
             return false;
         }
         try {
@@ -53,13 +58,13 @@ public class StarttlsHandlerSMTP
             if (e.getNextException() instanceof SSLHandshakeException) {
                 // likely got an unknown certificate, just report it and
                 // return success
-                System.out.println("ERROR on SSL handshake: "
+                LOG.info("ERROR on SSL handshake: "
                         + e.toString());
-                System.out.println("... trying SMTP with stopped...");
+                LOG.info("... trying SMTP stopped...");
                 return true;
             } else {
-                System.out.println(e.getMessage());
-                System.out.println("... trying SMTP with stopped...");
+                LOG.info(e.getMessage());
+                LOG.info("... trying SMTP stopped...");
                 return false;
             }
         } finally {
@@ -72,7 +77,7 @@ public class StarttlsHandlerSMTP
             }
 
         }
-        System.out.println("... trying SMTP with stopped...");
+        LOG.info("... trying SMTP stopped...");
         return false;
     } // run
 } // class StarttlsHandlerSMTP

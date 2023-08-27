@@ -2,13 +2,16 @@ package usn.net.ssl.util;
 
 import java.net.Socket;
 import java.sql.Connection;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
  * @author AO
  */
 public class StarttlsHandlerPOSTGRES implements StarttlsHandler {
+
+    private static final Logger LOG = LoggerFactory.getLogger(Starttls.class);
 
     @Override
     public boolean run(String host, int port, Socket tunnel) throws Exception {
@@ -29,7 +32,7 @@ public class StarttlsHandlerPOSTGRES implements StarttlsHandler {
             c.close();
             return true;
         } catch (Exception ex) {
-            System.out.println(ex.getMessage());
+            LOG.warn(ex.getMessage(), ex);
         }
         return false;
     }

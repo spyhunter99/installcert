@@ -9,12 +9,16 @@ import javax.mail.MessagingException;
 import javax.mail.NoSuchProviderException;
 import javax.mail.Session;
 import javax.mail.Store;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link StarttlsHandler} implementation for POP3 protocol.
  */
 public class StarttlsHandlerPOP3
         implements StarttlsHandler, Runnable {
+
+    private static final Logger LOG = LoggerFactory.getLogger(Starttls.class);
 
     @Override
     public boolean run(String host, int port, Socket tunnel) throws Exception // see http://javamail.kenai.com/nonav/javadocs/com/sun/mail/pop3/package-summary.html
@@ -23,7 +27,7 @@ public class StarttlsHandlerPOP3
         this.host = host;
         this.port = port;
 
-        final int timeout = 5000;
+        final int timeout = TimeoutSettings.getOverallTimeout();
         Thread t = new Thread(this);
         t.start();
 
@@ -50,22 +54,20 @@ public class StarttlsHandlerPOP3
 
     @Override
     public void run() {
-        System.out.println("... trying POP3 with STARTTLS extension ...");
+        LOG.info("... trying POP3 with STARTTLS extension ...");
         Properties mailProps = new Properties();
         mailProps.put("mail.store.protocol", "pop3");
         mailProps.put("mail.pop3.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
         mailProps.put("mail.pop3.socketFactory.fallback", "false");
         mailProps.put("mail.pop3.starttls.enable", "true");
-        
-        
-        mailProps.put("mail.smtp.timeout", "1000");
-        mailProps.put("mail.smtp.connectiontimeout", "1000");
-        mailProps.put("mail.pop3.timeout", "1000");
-        mailProps.put("mail.pop3.connectiontimeout", "1000");
-        mailProps.put("mail.imap.timeout", "1000");
-        mailProps.put("mail.imap.connectiontimeout", "1000");
-        mailProps.put("mail.imap.connectionpooltimeout", "1000");
 
+        mailProps.put("mail.smtp.timeout", TimeoutSettings.getConnectionTimeout()+"");
+        mailProps.put("mail.smtp.connectiontimeout", TimeoutSettings.getConnectionTimeout()+"");
+        mailProps.put("mail.pop3.timeout", TimeoutSettings.getConnectionTimeout()+"");
+        mailProps.put("mail.pop3.connectiontimeout", TimeoutSettings.getConnectionTimeout()+"");
+        mailProps.put("mail.imap.timeout", TimeoutSettings.getConnectionTimeout()+"");
+        mailProps.put("mail.imap.connectiontimeout", TimeoutSettings.getConnectionTimeout()+"");
+        mailProps.put("mail.imap.connectionpooltimeout",TimeoutSettings.getConnectionTimeout()+"");
 
         Security.setProperty("ssl.SocketFactory.provider",
                 SavingSSLSocketFactory.class.getName());
@@ -75,31 +77,33 @@ public class StarttlsHandlerPOP3
         try {
             store = mailSession.getStore("pop3");
         } catch (NoSuchProviderException e) {
-            e.printStackTrace();
+           LOG.warn(e.getMessage(), e);
             returnValue = false;
+            return;
         }
         try {
             store.connect(host, port, "", "");
         } catch (AuthenticationFailedException e) {
             // likely got an unknown certificate, just report it and return
             // success
-            System.out.println("ERROR on POP3 authentication: "
+            LOG.error("ERROR on POP3 authentication: "
                     + e.toString());
             returnValue = false;
         } catch (MessagingException e) {
-            System.out.println(e);
+            LOG.error(e.getMessage());
             returnValue = false;
         } finally {
-            if (store.isConnected()) {
+            if (store != null && store.isConnected()) {
                 try {
                     store.close();
                 } catch (MessagingException e) {
                     // nothing to do here...
+                    LOG.error(e.getMessage());
                 }
             }
-            
+
         }
-        
-        System.out.println("... trying POP3 with stopped...");
+
+        LOG.info("... trying POP3 stopped...");
     }
 } // class StarttlsHandlerPOP3

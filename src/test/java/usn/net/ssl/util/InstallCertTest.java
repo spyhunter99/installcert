@@ -32,7 +32,7 @@ public class InstallCertTest {
 
         X509Certificate cert = certs.iterator().next();
 
-        String result = InstallCert.certToString(cert);
+        String result = KeyStoreUtilities.certToString(cert);
         Assert.assertNotNull(certs);
         //ok now read it again
 
