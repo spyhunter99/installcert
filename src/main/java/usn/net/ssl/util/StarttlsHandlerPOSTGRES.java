@@ -1,17 +1,8 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package usn.net.ssl.util;
 
 import java.net.Socket;
-import java.security.GeneralSecurityException;
 import java.sql.Connection;
 
-
-import org.postgresql.ds.PGSimpleDataSource;
-import org.postgresql.ssl.WrappedFactory;
 
 /**
  *
@@ -19,26 +10,22 @@ import org.postgresql.ssl.WrappedFactory;
  */
 public class StarttlsHandlerPOSTGRES implements StarttlsHandler {
 
-    public static class DumperFactory extends WrappedFactory {
-
-        public DumperFactory(String arg) throws GeneralSecurityException {
-
-            factory = InstallCert.getContext().getSocketFactory();
-        }
-    }
-
     @Override
-    public boolean run(String host, int port,Socket tunnel) throws Exception {
-
+    public boolean run(String host, int port, Socket tunnel) throws Exception {
+        Object ds = null;
         try {
-            PGSimpleDataSource ds = new PGSimpleDataSource();
-            ds.setServerName(host);
-            ds.setPortNumber(port);
-            ds.setSsl(true);
-            ///this.sslContext = InstallCert.getContext();
-            ds.setSslfactory(host);
-            ds.setSslfactory(DumperFactory.class.getName());
-            Connection c = ds.getConnection();
+            ds = Class.forName("org.postgresql.ds.PGSimpleDataSource").newInstance();
+        } catch (Throwable t) {
+            throw new Exception("Unable to classload postgres jdbc driver. Check to ensure it's on the classpath");
+        }
+        try {
+
+            ds.getClass().getMethod("setServerName", String.class).invoke(ds, host);
+            ds.getClass().getMethod("setPortNumber", int.class).invoke(ds, port);
+            ds.getClass().getMethod("setSsl", boolean.class).invoke(ds, true);
+            ds.getClass().getMethod("setSslfactory", String.class).invoke(ds, "usn.net.ssl.util.PostgresDumperFactory");
+            Connection c = (Connection) ds.getClass().getMethod("getConnection").invoke(ds, (Object[]) null);
+
             c.close();
             return true;
         } catch (Exception ex) {
