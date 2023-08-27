@@ -5,6 +5,9 @@ fork of http://s-n-ushakov.blogspot.com/2013/11/yet-another-installcert-for-java
 
 ## History
 
+Aug 2023 - Minor updates to make including new protocol handlers easier and to make all dependencies optional (provided maven scope). 
+See `usn.net.ssl.util.Starttls#register(port, classname)` where classname must implement `usn.net.ssl.util.StarttlsHandler`.
+
 Aug 2017 - My original use case was for building a Java installer and making things as painless as possible for the person doing the install.
 In this particular case, integration with ldaps was required, which requires the trust chain to be added to the JDK/JRE trust store.
 In order to spare the users the pain of doing this manually, I wanted to automated setup whereby the user can just specify the server

@@ -1,7 +1,12 @@
 package usn.net.ssl.util;
 
+import com.sun.mail.iap.Protocol;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
 /**
  * A STARTTLS protocol extension wrapper class that makes an effort to decide on
@@ -11,53 +16,51 @@ public class Starttls {
 
     // TODO implement NNTP/STARTTLS (119) some day...
     // TODO implement XMPP/STARTTLS (5222) some day...
-    /**
-     * Enumeration of known application-level TCP-based protocols that support
-     * STARTTLS extension, with their standard port numbers.
-     */
-    public enum Protocol {
-        SMTP(25),
-        POP3(110),
-        IMAP(143),
-        LDAP(389),
-        LDAPS(636),
-        LDAPGC(3268),
-        LDAPGCS(3269),
-        POSTGRES(5432);
+    private static final Map<Integer, String> registry = new HashMap<>();
 
-        /**
-         * The standard port for a protocol
-         */
-        int port;
+    static {
+        registry.put(25, "usn.net.ssl.util.StarttlsHandlerSMTP");
+        registry.put(110, "usn.net.ssl.util.StarttlsHandlerPOP3");
+        registry.put(143, "usn.net.ssl.util.StarttlsHandlerIMAP");
+        registry.put(389, "usn.net.ssl.util.StarttlsHandlerLDAP");
+        registry.put(636, "usn.net.ssl.util.StarttlsHandlerLDAPS");
+        registry.put(3268, "usn.net.ssl.util.StarttlsHandlerLDAPGC");
+        registry.put(3269, "usn.net.ssl.util.StarttlsHandlerLDAPGCS");
+        registry.put(5432, "usn.net.ssl.util.StarttlsHandlerPOSTGRES");
+    }
 
-        /**
-         * The constructor for a given standard port
-         *
-         * @param port the standard port for a protocol
-         */
-        Protocol(int port) {
-            this.port = port;
-        } // Protocols
-
-        /**
-         * Guess a protocol with given port number
-         *
-         * @param port the port number to try
-         * @return a {@link Protocol} enumeration constant, or <code>null</code>
-         * if no appropriate protocol found
-         */
-        static public Starttls.Protocol getByPort(int port) {
-            for (Starttls.Protocol p : Protocol.values()) {
-                if (p.port == port) {
-                    return p;
+    public static void register(int port, String impl) {
+        registry.put(port, impl);
+    }
+    public static void unregister(Integer port, String impl) {
+        if (port!=null)
+            registry.remove(port);
+        if (impl!=null) {
+            Set<Map.Entry<Integer, String>> entrySet = registry.entrySet();
+            for (Entry<Integer, String> item : entrySet) {
+                if (item.getValue().equals(impl)) {
+                    registry.remove(port);
+                    break;
                 }
             }
-            return null;
-        } // getByPort
+        }
+    }
 
-    } // enum Protocol
+    /**
+     * Guess a protocol with given port number
+     *
+     * @param port the port number to try
+     * @return a {@link Protocol} enumeration constant, or <code>null</code> if
+     * no appropriate protocol found
+     */
+    public static String getByPort(int port) {
+        if (registry.containsKey(port)) {
+            return registry.get(port);
+        }
+        return null;
+    } // getByPort
 
-     /**
+    /**
      * Make an effort to guess the right application protocol for STARTTLS
      * extension, either by standard port or by interrogating the user; then
      * obtain the appropriate protocol handler and run it.
@@ -70,40 +73,38 @@ public class Starttls {
      */
     public static boolean consider(String host, int port, Socket proxyTunnel)
             throws IOException, Exception {
-        Starttls.Protocol protocolForPort = Protocol.getByPort(port);
+        String protocolForPort = getByPort(port);
         if (protocolForPort != null) {
-            return obtainProtocolHandlerAndRun(protocolForPort.name(), host, port, proxyTunnel);
+            return obtainProtocolHandlerAndRun(protocolForPort, host, port, proxyTunnel);
         } else {
             //let's just try everything
-            Protocol[] vals = Protocol.values();
-            for (int i = 0; i < vals.length; i++) {
-
-                if (obtainProtocolHandlerAndRun(vals[i].name(), host, port,proxyTunnel)) {
+            for (String s : registry.values()) {
+                if (obtainProtocolHandlerAndRun(s, host, port, proxyTunnel)) {
                     return true;
                 }
             }
-            return false;
         }
-    } // consider
+        return false;
+    }
 
     /**
      * Load a given application specific protocol STARTTLS handler and run it.
      *
-     * @param handlerSuffix the protocol handler name suffix, named after
+     * @param handlerClassname the protocol handler name suffix, named after
      * protocol itself
      * @param host the host to connect to
      * @param port the port to connect to
      * @return <code>true</code> if getting a certificate via STARTTLS handler
      * is believed to be successful, <code>false</code> otherwise
      */
-    private static boolean obtainProtocolHandlerAndRun(String handlerSuffix, String host, int port, Socket proxyTunnel) throws Exception {
+    private static boolean obtainProtocolHandlerAndRun(String handlerClassname, String host, int port, Socket proxyTunnel) throws Exception {
         Class<StarttlsHandler> handlerClass = null;
         try {
             // avoid static linking to JavaMail library and other
             // protocol-specific libraries
             @SuppressWarnings("unchecked")
             Class<StarttlsHandler> handlerUncheckedClass
-                    = (Class<StarttlsHandler>) Class.forName(StarttlsHandler.class.getName() + handlerSuffix);
+                    = (Class<StarttlsHandler>) Class.forName(handlerClassname);
             handlerClass = handlerUncheckedClass;
         } catch (ClassNotFoundException e) {
             // not really observed, but we should expect may happen...
