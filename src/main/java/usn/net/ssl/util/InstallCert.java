@@ -69,8 +69,6 @@ import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import sun.security.provider.certpath.SunCertPathBuilderException;
-import sun.security.validator.ValidatorException;
 
 /**
  * <p>
@@ -465,9 +463,9 @@ public class InstallCert {
         // Thus three distinct cases for considering a STARTTLS extension below
         catch (SSLHandshakeException e) {
             if (e.getCause() != null
-                    && e.getCause().getClass().equals(ValidatorException.class)
+                    && e.getCause().getClass().getSimpleName().equals("ValidatorException")
                     && e.getCause().getCause() != null
-                    && e.getCause().getCause().getClass().equals(SunCertPathBuilderException.class)) {
+                    && e.getCause().getCause().getClass().getSimpleName().equals("SunCertPathBuilderException")) {
                 // this is the standard case: looks like we just got a
                 // previously unknown certificate, so report it and go
                 // ahead...
