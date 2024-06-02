@@ -69,7 +69,6 @@ import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * <p>
  * A program to obtain SSL certificate(s) from a host and save them to a
@@ -142,13 +141,13 @@ public class InstallCert {
 
     private static final Logger LOG = LoggerFactory.getLogger(InstallCert.class.getName());
     public static final char[] DEFAULT = "changeit".toCharArray();
-  
 
     //this is also the only variable that prevents this class from being thread safe.
     // this one is needed here to allow being shared with embedded classes
     private static SSLContext context;
     public static MessageDigest sha1 = null;
     public static MessageDigest md5 = null;
+
     static {
         try {
             sha1 = MessageDigest.getInstance("SHA1");
@@ -197,6 +196,7 @@ public class InstallCert {
         opts.addOption("host", true, "The host:port of the server to pull a ssl cert chain from. If not specified, 443 will be used.");
         opts.addOption("truststore", true, "if specified, this trust store will be used, otherwise JAVA_HOME/cacerts will be used");
         opts.addOption("truststoreExtra", true, "if specified, this trust store will also be used");
+        opts.addOption("truststoreType", true, "if specified, overrides the default trust store type of " + KeyStore.getDefaultType());
         opts.addOption("password", true, "if specified, your value will be used for the trust store password. if not specified the default jre password will be used");
         opts.addOption("passwordExtra", true, "if specified, password for the extra trust store");
         opts.addOption("noimport", false, "if specified, no changes will be made to trust stores");
@@ -231,7 +231,10 @@ public class InstallCert {
         // handle command line arguments
         String host = null;
         int port = 0;
-
+        String trustStoreType = KeyStore.getDefaultType();
+        if (inputs.hasOption("truststoreType")) {
+            trustStoreType = inputs.getOptionValue("truststoreType");
+        }
         char[] password = null;
 
         char[] pwd2 = null;
@@ -258,12 +261,12 @@ public class InstallCert {
         }
 
         if (inputs.hasOption("truststore")) {
-            ref.addTrustStore(new File(inputs.getOptionValue("truststore")), password);
+            ref.addTrustStore(new File(inputs.getOptionValue("truststore")), password, trustStoreType);
         }
 
         if (inputs.hasOption("truststoreExtra")) {
             storeLocation2 = new File(inputs.getOptionValue("truststoreExtra"));
-            ref.addTrustStore(storeLocation2, pwd2);
+            ref.addTrustStore(storeLocation2, pwd2, trustStoreType);
         }
 
         if (inputs.hasOption("exclude")) {
@@ -317,12 +320,10 @@ public class InstallCert {
         String line = stdinReader.readLine().trim();
         return line;
     } // ask
-    
-    
+
     private boolean excludeAllTrustStates = false;
 
     private Set<KeyStoreWrapper> trustStoresToModify = new HashSet<KeyStoreWrapper>();
-
 
     public InstallCert() {
 
@@ -337,9 +338,11 @@ public class InstallCert {
     }
 
     /**
-     * if true, and provided trust store, including the built in JRE/JDK trust stores will
-     * be ignored with processing. meaning you'll get a set of all certificates in the trust chain
-     * for the remote server, whether or not it's trusted
+     * if true, and provided trust store, including the built in JRE/JDK trust
+     * stores will be ignored with processing. meaning you'll get a set of all
+     * certificates in the trust chain for the remote server, whether or not
+     * it's trusted
+     *
      * @return true/false
      */
     public boolean isExcludeAllTrustStates() {
@@ -351,16 +354,30 @@ public class InstallCert {
     }
 
     /**
-     * adds a trust store to use for both connecting to a server and for applying changes
+     * adds a trust store to use for both connecting to a server and for
+     * applying changes
+     *
      * @param file
      * @param password
-     * @throws Exception 
+     * @throws Exception
      */
     public void addTrustStore(File file, char[] password) throws Exception {
+        addTrustStore(file, password, KeyStore.getDefaultType());
+    }
+
+    /**
+     * adds a trust store to use for both connecting to a server and for
+     * applying changes
+     *
+     * @param file
+     * @param password
+     * @throws Exception
+     */
+    public void addTrustStore(File file, char[] password, String keystoreType) throws Exception {
         KeyStoreWrapper wrapper = new KeyStoreWrapper();
         wrapper.setKeyStoreLocation(file);
         wrapper.setKeyStorePassword(password);
-        wrapper.setStore(KeyStoreUtilities.getKeyStore(file, password));
+        wrapper.setStore(KeyStoreUtilities.getKeyStore(file, password, keystoreType));
         trustStoresToModify.add(wrapper);
     }
 
@@ -609,8 +626,7 @@ public class InstallCert {
     }
 
     /**
-     * Proxy support
-     * see https://github.com/escline/InstallCert/issues/9
+     * Proxy support see https://github.com/escline/InstallCert/issues/9
      *
      * @author vpablos@github
      * @param tunnel
