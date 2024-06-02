@@ -96,9 +96,12 @@ so it must be as a super user account via su or sudo
 	<dependency>
 		<groupId>com.github.spyhunter99</groupId>
 		<artifactId>install-cert</artifactId>
-		<version>1.0.4</version>
+		<version>VERSION</version>
 	</dependency>
 ```
+
+The latest version can be obtained here: https://mvnrepository.com/artifact/com.github.spyhunter99/install-cert
+
 
 ### Add the code
 
