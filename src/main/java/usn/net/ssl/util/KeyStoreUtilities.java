@@ -62,11 +62,22 @@ public class KeyStoreUtilities {
     } // getCommonName
 
     public static KeyStore getKeyStore(File file, char[] password) throws Exception {
+        return getKeyStore(file, password, KeyStore.getDefaultType());
+    }
+
+    public static KeyStore getKeyStore(File file, char[] password, String trustStoreType) throws Exception {
         KeyStore ksKnown = KeyStore.getInstance(KeyStore.getDefaultType());
-        System.out.println("... loading system truststore from '" + file.getCanonicalPath() + "' ...");
-        InputStream in = new FileInputStream(file);
-        ksKnown.load(in, password);
-        in.close();
+        LOG.info("... loading system truststore from '" + file.getCanonicalPath() + "' ...");
+        InputStream in = null;
+        try {
+            in = new FileInputStream(file);
+            ksKnown.load(in, password);
+        } finally {
+            if (in != null) {
+                in.close();
+            }
+        }
+
         return ksKnown;
     }
 

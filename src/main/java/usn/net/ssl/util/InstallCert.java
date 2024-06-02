@@ -336,6 +336,12 @@ public class InstallCert {
         return files;
     }
 
+    /**
+     * if true, and provided trust store, including the built in JRE/JDK trust stores will
+     * be ignored with processing. meaning you'll get a set of all certificates in the trust chain
+     * for the remote server, whether or not it's trusted
+     * @return true/false
+     */
     public boolean isExcludeAllTrustStates() {
         return excludeAllTrustStates;
     }
@@ -344,6 +350,12 @@ public class InstallCert {
         this.excludeAllTrustStates = excludeAllTrustStates;
     }
 
+    /**
+     * adds a trust store to use for both connecting to a server and for applying changes
+     * @param file
+     * @param password
+     * @throws Exception 
+     */
     public void addTrustStore(File file, char[] password) throws Exception {
         KeyStoreWrapper wrapper = new KeyStoreWrapper();
         wrapper.setKeyStoreLocation(file);
